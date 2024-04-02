@@ -133,6 +133,19 @@ void MUL(int i) {
     Register[src2_offset] = 0;
 }
 
+void DIV(int i) {
+    int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
+    int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
+    int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
+
+    Register[dst_offset] = Register[src1_offset] / Register[src2_offset];
+
+    printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d\n"
+        , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
+    Register[src1_offset] = 0;
+    Register[src2_offset] = 0;
+}
+
 int main(int argc, char* argv[]) {
     // 명령행에서 파일 이름을 인자로 전달하지 않았을 경우 오류 메시지를 출력하고 종료합니다.
     if (argc != 2) {
@@ -174,8 +187,7 @@ int main(int argc, char* argv[]) {
             MUL(i);
         }
         else if (strcmp(arr[i][0], "DIV") == 0) {
-            printf("DIV\n");
-            // DIV에 대한 처리 추가
+            DIV(i);
         }
         else if (strcmp(arr[i][0], "LW") == 0) {
             LW(i);
