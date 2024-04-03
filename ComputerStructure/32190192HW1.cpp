@@ -103,8 +103,6 @@ void ADD(int i) {
 
     printf("32190192> Added %s(%d) to %s(%d) and changed %s to %d\n"
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
-    Register[src1_offset] = 0;
-    Register[src2_offset] = 0;
 }
 
 void SUB(int i) {
@@ -116,8 +114,6 @@ void SUB(int i) {
 
     printf("32190192> Subtracted %s(%d) to %s(%d) and changed %s to %d\n"
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
-    Register[src1_offset] = 0;
-    Register[src2_offset] = 0;
 }
 
 void MUL(int i) {
@@ -129,8 +125,6 @@ void MUL(int i) {
 
     printf("32190192> Multiplied %s(%d) to %s(%d) and changed %s to %d\n"
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
-    Register[src1_offset] = 0;
-    Register[src2_offset] = 0;
 }
 
 void DIV(int i) {
@@ -142,8 +136,6 @@ void DIV(int i) {
 
     printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d\n"
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
-    Register[src1_offset] = 0;
-    Register[src2_offset] = 0;
 }
 
 int JMP(int i, int j, int check) {
@@ -187,6 +179,33 @@ int BNE(int i) {
         printf("32190192> Checked if %s(%d) is equal to %s(%d) and didn't jumped to line %d\n",
             arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
         return 0;
+    }
+}
+
+void SLT(int i) {
+    int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
+    int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
+    int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
+
+    if (Register[src1_offset] < Register[src2_offset]) {
+        Register[dst_offset] = 1;
+        printf("32190192> Checked if %s(%d) is less than %s(%d) and set 1 to %s\n",
+            arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1]);
+
+    }
+    else {
+        Register[dst_offset] = 0;
+        printf("32190192> Checked if %s(%d) is not less than %s(%d) and set 0 to %s\n",
+            arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1]);
+    }
+}
+
+// 동적으로 할당된 메모리를 해제해주는 함수 
+void memory_free() {
+    for (int i = 0; i < row_index; i++) {
+        for (int j = 0; j < row_cnt[i]; j++) {
+            free(arr[i][j]);
+        }
     }
 }
 
@@ -255,15 +274,19 @@ int main(int argc, char* argv[]) {
 
         }
         else if (strcmp(arr[i][0], "SLT") == 0) {
-            printf("SLT\n");
-            // SLT에 대한 처리 추가
+            SLT(i);
         }
         else {
             printf("Invalid instruction\n");
             // 유효하지 않은 명령어 처리
         }
     }
+
+    // v0 register 값 출력
     printf("32190192> Print out %d\n", Register[v0_BASE_POINTER]);
+
+    // 동적으로 할당된 메모리를 해제
+    memory_free();
 
     return 0;
 }
