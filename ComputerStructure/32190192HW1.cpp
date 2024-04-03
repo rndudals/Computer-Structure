@@ -140,10 +140,14 @@ void DIV(int i) {
 
     Register[dst_offset] = Register[src1_offset] / Register[src2_offset];
 
-    printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d \n"
+    printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d\n"
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
     Register[src1_offset] = 0;
     Register[src2_offset] = 0;
+}
+
+int JMP(int i) {
+    return hex_string_to_int(arr[i][1]) - 2;
 }
 
 int main(int argc, char* argv[]) {
@@ -197,8 +201,7 @@ int main(int argc, char* argv[]) {
             // NOP에 대한 처리 추가
         }
         else if (strcmp(arr[i][0], "JMP") == 0) {
-            printf("JMP\n");
-            // JMP에 대한 처리 추가
+            i = JMP(i);
         }
         else if (strcmp(arr[i][0], "BEQ") == 0) {
             printf("BEQ\n");
