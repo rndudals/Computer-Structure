@@ -140,7 +140,7 @@ void DIV(int i) {
 
     Register[dst_offset] = Register[src1_offset] / Register[src2_offset];
 
-    printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d\n"
+    printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d \n"
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
     Register[src1_offset] = 0;
     Register[src2_offset] = 0;
