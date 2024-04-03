@@ -147,7 +147,24 @@ void DIV(int i) {
 }
 
 int JMP(int i) {
-    return hex_string_to_int(arr[i][1]) - 2;
+    int line = hex_string_to_int(arr[i][1]);
+    printf("32190192> jumped to line %d\n", line);
+    return line - 2;
+}
+
+int BEQ(int i) {
+    int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
+    int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
+
+    if (Register[src1_offset] == Register[src2_offset]) {
+        printf("32190192> Checked if %s(%d) is equal to %s(%d) and ",
+            arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset]);
+        return hex_string_to_int(arr[i][3]);
+    }
+    else {
+
+        return 0;
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -197,15 +214,20 @@ int main(int argc, char* argv[]) {
             LW(i);
         }
         else if (strcmp(arr[i][0], "NOP") == 0) {
-            printf("NOP\n");
-            // NOP에 대한 처리 추가
+
         }
         else if (strcmp(arr[i][0], "JMP") == 0) {
             i = JMP(i);
         }
         else if (strcmp(arr[i][0], "BEQ") == 0) {
-            printf("BEQ\n");
-            // BEQ에 대한 처리 추가
+            int jump = BEQ(i);
+
+            if (jump) {
+                JMP(jump);
+            }
+            else {
+
+            }
         }
         else if (strcmp(arr[i][0], "BNE") == 0) {
             printf("BNE\n");
