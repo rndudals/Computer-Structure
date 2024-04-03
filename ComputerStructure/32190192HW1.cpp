@@ -172,6 +172,24 @@ int BEQ(int i) {
     }
 }
 
+int BNE(int i) {
+    int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
+    int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
+
+    int line = hex_string_to_int(arr[i][3]);
+
+    if (Register[src1_offset] != Register[src2_offset]) {
+        printf("32190192> Checked if %s(%d) is not equal to %s(%d) and jumped to line %d\n",
+            arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
+        return 1;
+    }
+    else {
+        printf("32190192> Checked if %s(%d) is equal to %s(%d) and didn't jumped to line %d\n",
+            arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
+        return 0;
+    }
+}
+
 int main(int argc, char* argv[]) {
     // 명령행에서 파일 이름을 인자로 전달하지 않았을 경우 오류 메시지를 출력하고 종료합니다.
     if (argc != 2) {
@@ -225,17 +243,16 @@ int main(int argc, char* argv[]) {
             i = JMP(i, 1, 1);
         }
         else if (strcmp(arr[i][0], "BEQ") == 0) {
-            int jump = BEQ(i);
-            if (jump) {
-                i = JMP(i, 3, 0);
-            }
-            else {
 
-            }
+            int jump = BEQ(i);
+            if (jump) i = JMP(i, 3, 0);
+
         }
         else if (strcmp(arr[i][0], "BNE") == 0) {
-            printf("BNE\n");
-            // BNE에 대한 처리 추가
+
+            int jump = BNE(i);
+            if (jump) i = JMP(i, 3, 0);
+
         }
         else if (strcmp(arr[i][0], "SLT") == 0) {
             printf("SLT\n");
