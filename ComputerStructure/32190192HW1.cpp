@@ -23,10 +23,10 @@
 // s0 ~ s7 = Register[10] ~ Register[17]
 // v0 = Register[18]
 // zero = Register[19] 
-#define t0_BASE_POINTER 0
-#define s0_BASE_POINTER 10
-#define v0_BASE_POINTER 18
-#define zero_BASE_POINTER 19
+#define T0_BASE_POINTER 0
+#define S0_BASE_POINTER 10
+#define V0_BASE_POINTER 18
+#define ZERO_BASE_POINTER 19
 int Register[20];
 
 
@@ -34,10 +34,8 @@ char* arr[MAX_ROW_LENGTH][MAX_COL_LENGTH];
 int row_index; // 현재 행 인덱스
 int row_cnt[MAX_ROW_LENGTH];
 
-
+// 파싱해주는 함수
 void parse(char* argv[], FILE* fp) {
-
-
     char line[MAX_COL_LENGTH]; // 파일에서 읽어온 한 줄을 저장할 배열
     char* token = NULL; // strtok 함수로 파싱된 토큰을 저장할 포인터
 
@@ -54,6 +52,7 @@ void parse(char* argv[], FILE* fp) {
     }
 }
 
+// 16진수를 10진수로 바꿔주는 함수
 int hex_string_to_int(char* hex_string) {
     // 문자열이 "0x"로 시작하는지 확인하고, 시작한다면 인덱스를 조정합니다.
     int index = 0;
@@ -67,19 +66,22 @@ int hex_string_to_int(char* hex_string) {
     return (int)strtol(hex_string + index, NULL, 16);
 }
 
+// base pointer index 위치를 잡아주는 함수
 int base_pointer(int i, int j) {
     int base_pointer = 0;
-    if (arr[i][j][0] == 'r') base_pointer += v0_BASE_POINTER;
-    if (arr[i][j][0] == 's') base_pointer += s0_BASE_POINTER;
-    if (arr[i][j][0] == 't') base_pointer += t0_BASE_POINTER;
-    if (arr[i][j][0] == 'z') base_pointer += zero_BASE_POINTER;
+    if (arr[i][j][0] == 'r') base_pointer += V0_BASE_POINTER;
+    if (arr[i][j][0] == 's') base_pointer += S0_BASE_POINTER;
+    if (arr[i][j][0] == 't') base_pointer += T0_BASE_POINTER;
+    if (arr[i][j][0] == 'z') base_pointer += ZERO_BASE_POINTER;
     return base_pointer;
 }
 
+// offset index 위치를 잡아주는 함수
 int move_offset(int i, int j) {
     return arr[i][j][1] - '0';
 }
 
+// LW instruction 처리 함수
 void LW(int i) {
     // 길이 검증
 
@@ -93,6 +95,7 @@ void LW(int i) {
     printf("32190192> Loaded %d to %s\n", Register[dst_offset], arr[i][1]);
 }
 
+// ADD instruction 처리 함수
 void ADD(int i) {
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -105,6 +108,7 @@ void ADD(int i) {
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
 }
 
+// SUB instruction 처리 함수
 void SUB(int i) {
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -116,6 +120,7 @@ void SUB(int i) {
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
 }
 
+// MUL instruction 처리 함수
 void MUL(int i) {
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -127,6 +132,7 @@ void MUL(int i) {
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
 }
 
+// DIV instruction 처리 함수
 void DIV(int i) {
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -138,6 +144,7 @@ void DIV(int i) {
         , arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1], Register[dst_offset]);
 }
 
+// JMP instruction 처리 함수
 int JMP(int i, int j, int check) {
     int line = hex_string_to_int(arr[i][j]);
     if (check) {
@@ -146,6 +153,7 @@ int JMP(int i, int j, int check) {
     return line - 2;
 }
 
+// BEQ instruction 처리 함수
 int BEQ(int i) {
     int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -164,6 +172,7 @@ int BEQ(int i) {
     }
 }
 
+// BNE instruction 처리 함수
 int BNE(int i) {
     int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -182,6 +191,7 @@ int BNE(int i) {
     }
 }
 
+// SLT instruction 처리 함수
 void SLT(int i) {
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
@@ -198,6 +208,11 @@ void SLT(int i) {
         printf("32190192> Checked if %s(%d) is not less than %s(%d) and set 0 to %s\n",
             arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1]);
     }
+}
+
+// NOP instruction 처리 함수
+void NOP() {
+    printf("32190192> No operation\n");
 }
 
 // 동적으로 할당된 메모리를 해제해주는 함수 
@@ -231,7 +246,7 @@ int main(int argc, char* argv[]) {
     // 파일을 닫습니다.
     fclose(fp);
 
-
+    // 명령 수행
     for (int i = 0; i < row_index; i++) {
         printf("(line %d)", i + 1);
 
@@ -256,34 +271,34 @@ int main(int argc, char* argv[]) {
             LW(i);
         }
         else if (strcmp(arr[i][0], "NOP") == 0) {
-
+            NOP();
         }
         else if (strcmp(arr[i][0], "JMP") == 0) {
             i = JMP(i, 1, 1);
         }
         else if (strcmp(arr[i][0], "BEQ") == 0) {
 
-            int jump = BEQ(i);
-            if (jump) i = JMP(i, 3, 0);
+            int check = BEQ(i);
+            if (check) i = JMP(i, 3, 0);
 
         }
         else if (strcmp(arr[i][0], "BNE") == 0) {
 
-            int jump = BNE(i);
-            if (jump) i = JMP(i, 3, 0);
+            int check = BNE(i);
+            if (check) i = JMP(i, 3, 0);
 
         }
         else if (strcmp(arr[i][0], "SLT") == 0) {
             SLT(i);
         }
         else {
-            printf("Invalid instruction\n");
             // 유효하지 않은 명령어 처리
+            printf("Invalid instruction\n");
         }
     }
 
     // v0 register 값 출력
-    printf("32190192> Print out %d\n", Register[v0_BASE_POINTER]);
+    printf("32190192> Print out %d\n", Register[V0_BASE_POINTER]);
 
     // 동적으로 할당된 메모리를 해제
     memory_free();
