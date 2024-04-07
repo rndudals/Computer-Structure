@@ -83,11 +83,11 @@ int move_offset(int i, int j) {
 
 // LW instruction 처리 함수
 void LW(int i) {
-    // 길이 검증
-
-    // s가 아닐 때
-
-    // 16진수가 아닐 때
+    // 길이 예외 처리
+    if (LW_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! LW_OPERAND_SIZE는 %d입니다.\n", LW_OPERAND_SIZE);
+        exit(0);
+    }
 
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
 
@@ -97,6 +97,12 @@ void LW(int i) {
 
 // ADD instruction 처리 함수
 void ADD(int i) {
+    // 길이 예외 처리
+    if (ADD_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! ADD_OPERAND_SIZE는 %d입니다.\n", ADD_OPERAND_SIZE);
+        exit(0);
+    }
+
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
@@ -110,6 +116,11 @@ void ADD(int i) {
 
 // SUB instruction 처리 함수
 void SUB(int i) {
+    // 길이 예외 처리
+    if (SUB_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! SUB_OPERAND_SIZE는 %d입니다.\n", SUB_OPERAND_SIZE);
+        exit(0);
+    }
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
@@ -122,6 +133,12 @@ void SUB(int i) {
 
 // MUL instruction 처리 함수
 void MUL(int i) {
+    // 길이 예외 처리
+    if (MUL_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! MUL_OPERAND_SIZE는 %d입니다.\n", MUL_OPERAND_SIZE);
+        exit(0);
+    }
+
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
@@ -134,6 +151,11 @@ void MUL(int i) {
 
 // DIV instruction 처리 함수
 void DIV(int i) {
+    // 길이 예외 처리
+    if (DIV_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! DIV_OPERAND_SIZE는 %d입니다.\n", DIV_OPERAND_SIZE);
+        exit(0);
+    }
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
@@ -155,6 +177,11 @@ int JMP(int i, int j, int check) {
 
 // BEQ instruction 처리 함수
 int BEQ(int i) {
+    // 길이 예외 처리
+    if (BEQ_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! BEQ_OPERAND_SIZE는 %d입니다.\n", BEQ_OPERAND_SIZE);
+        exit(0);
+    }
     int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
 
@@ -174,6 +201,11 @@ int BEQ(int i) {
 
 // BNE instruction 처리 함수
 int BNE(int i) {
+    // 길이 예외 처리
+    if (BNE_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! BNE_OPERAND_SIZE는 %d입니다.\n", BNE_OPERAND_SIZE);
+        exit(0);
+    }
     int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
 
@@ -193,6 +225,11 @@ int BNE(int i) {
 
 // SLT instruction 처리 함수
 void SLT(int i) {
+    // 길이 예외 처리
+    if (SLT_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! SLT_OPERAND_SIZE는 %d입니다.\n", SLT_OPERAND_SIZE);
+        exit(0);
+    }
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
@@ -211,7 +248,12 @@ void SLT(int i) {
 }
 
 // NOP instruction 처리 함수
-void NOP() {
+void NOP(int i) {
+    // 길이 예외 처리
+    if (NOP_OPERAND_SIZE != row_cnt[i] - 1) {
+        printf("exception! NOP_OPERAND_SIZE는 %d입니다.\n", NOP_OPERAND_SIZE);
+        exit(0);
+    }
     printf("32190192> No operation\n");
 }
 
@@ -271,7 +313,7 @@ int main(int argc, char* argv[]) {
             LW(i);
         }
         else if (strcmp(arr[i][0], "NOP") == 0) {
-            NOP();
+            NOP(i);
         }
         else if (strcmp(arr[i][0], "JMP") == 0) {
             i = JMP(i, 1, 1);
