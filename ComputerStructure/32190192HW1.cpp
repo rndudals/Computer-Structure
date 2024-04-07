@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 각 명령어에 대한 상수 정의
+// 각 명령어에 대한 상수 정의(operand길이 예외 처리에 사용)
 #define ADD_OPERAND_SIZE 3
 #define SUB_OPERAND_SIZE 3
 #define MUL_OPERAND_SIZE 3
@@ -14,7 +14,7 @@
 #define BNE_OPERAND_SIZE 3
 #define SLT_OPERAND_SIZE 3
 
-// 파일의 최댓값 정의
+// 파일의 최댓값 정의(파일 최대 길이 예외 처리에 사용)
 #define MAX_COL_LENGTH 100
 #define MAX_ROW_LENGTH 1000
 
@@ -30,9 +30,9 @@
 int Register[20];
 
 
-char* arr[MAX_ROW_LENGTH][MAX_COL_LENGTH];
+char* arr[MAX_ROW_LENGTH][MAX_COL_LENGTH]; // 파일을 파싱해서 2차원 string배열로 저장합니다.
 int row_index; // 현재 행 인덱스
-int row_cnt[MAX_ROW_LENGTH];
+int row_cnt[MAX_ROW_LENGTH]; // 파일의 row 별 token 개수
 
 // 파싱해주는 함수
 void parse(char* argv[], FILE* fp) {
@@ -49,6 +49,8 @@ void parse(char* argv[], FILE* fp) {
             token = strtok(NULL, " \n");
         }
         row_index++;
+
+        // 파일 최대 길이 예외 처
         if (row_index > MAX_ROW_LENGTH) {
             printf("exception! 파일의 세로길이는 %d을 넘을 수 없습니다.\n", MAX_ROW_LENGTH);
             exit(0);
@@ -352,7 +354,6 @@ int main(int argc, char* argv[]) {
             SLT(i);
         }
         else {
-            // 유효하지 않은 명령어 처리
             printf("Invalid instruction\n");
         }
     }
