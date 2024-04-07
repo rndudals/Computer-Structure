@@ -49,6 +49,10 @@ void parse(char* argv[], FILE* fp) {
             token = strtok(NULL, " \n");
         }
         row_index++;
+        if (row_index > MAX_ROW_LENGTH) {
+            printf("exception! 파일의 세로길이는 %d을 넘을 수 없습니다.\n", MAX_ROW_LENGTH);
+            exit(0);
+        }
     }
 }
 
@@ -60,7 +64,9 @@ int hex_string_to_int(char* hex_string) {
         index = 2;
     }
     else {
-        // 예외처리
+        // 16진수 예외 처리
+        printf("exception! %s는 16진수가 아닙니다.\n", hex_string);
+        exit(0);
     }
     // 16진수로 표현된 문자열을 10진수로 변환합니다.
     return (int)strtol(hex_string + index, NULL, 16);
@@ -86,6 +92,12 @@ void LW(int i) {
     // 길이 예외 처리
     if (LW_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! LW_OPERAND_SIZE는 %d입니다.\n", LW_OPERAND_SIZE);
+        exit(0);
+    }
+
+    // 레지스터 검증
+    if (base_pointer(i, 1) != S0_BASE_POINTER) {
+        printf("exception! LW의 레지스터는 s만 사용 가능합니다.\n");
         exit(0);
     }
 
@@ -156,6 +168,12 @@ void DIV(int i) {
         printf("exception! DIV_OPERAND_SIZE는 %d입니다.\n", DIV_OPERAND_SIZE);
         exit(0);
     }
+
+    if (base_pointer(i, 3) == ZERO_BASE_POINTER) {
+        printf("exception! 0으로 나눌수 없습니다.\n");
+        exit(0);
+    }
+
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
