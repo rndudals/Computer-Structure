@@ -34,6 +34,7 @@ char* arr[MAX_ROW_LENGTH][MAX_COL_LENGTH]; // 파일을 파싱해서 2차원 string배열로
 int row_index; // 현재 행 인덱스
 int row_cnt[MAX_ROW_LENGTH]; // 파일의 row 별 token 개수
 
+
 // 파싱해주는 함수
 void parse(char* argv[], FILE* fp) {
     char line[MAX_COL_LENGTH]; // 파일에서 읽어온 한 줄을 저장할 배열
@@ -42,6 +43,7 @@ void parse(char* argv[], FILE* fp) {
     // 파일에서 한 줄씩 읽어와서 파싱합니다.
     while (fgets(line, sizeof(line), fp) != NULL) {
         row_cnt[row_index] = 0; // 각 행의 열 카운트를 초기화합니다.
+
         // 각 줄을 파싱하여 토큰을 출력합니다.
         token = strtok(line, " \n"); // 스페이스바와 개행 문자로 토큰을 분리합니다.
         while (token != NULL) {
@@ -50,7 +52,7 @@ void parse(char* argv[], FILE* fp) {
         }
         row_index++;
 
-        // 파일 최대 길이 예외 처
+        // 파일 최대 길이 예외 처리
         if (row_index > MAX_ROW_LENGTH) {
             printf("exception! 파일의 세로길이는 %d을 넘을 수 없습니다.\n", MAX_ROW_LENGTH);
             exit(0);
@@ -60,6 +62,7 @@ void parse(char* argv[], FILE* fp) {
 
 // 16진수를 10진수로 바꿔주는 함수
 int hex_string_to_int(char* hex_string) {
+
     // 문자열이 "0x"로 시작하는지 확인하고, 시작한다면 인덱스를 조정합니다.
     int index = 0;
     if (hex_string[0] == '0' && hex_string[1] == 'x') {
@@ -70,6 +73,7 @@ int hex_string_to_int(char* hex_string) {
         printf("exception! %s는 16진수가 아닙니다.\n", hex_string);
         exit(0);
     }
+
     // 16진수로 표현된 문자열을 10진수로 변환합니다.
     return (int)strtol(hex_string + index, NULL, 16);
 }
@@ -91,36 +95,41 @@ int move_offset(int i, int j) {
 
 // LW instruction 처리 함수
 void LW(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (LW_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! LW_OPERAND_SIZE는 %d입니다.\n", LW_OPERAND_SIZE);
         exit(0);
     }
 
-    // 레지스터 검증
+    // 레지스터 검증 예외 처리
     if (base_pointer(i, 1) != S0_BASE_POINTER) {
         printf("exception! LW의 레지스터는 s만 사용 가능합니다.\n");
         exit(0);
     }
 
+    // 사용할 레지스터를 위치를 가져옵니다.
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
 
+    // 메모리에서 레지스터로 값을 가져옵니다.
     Register[dst_offset] = hex_string_to_int(arr[i][2]);
     printf("32190192> Loaded %d to %s\n", Register[dst_offset], arr[i][1]);
 }
 
 // ADD instruction 처리 함수
 void ADD(int i) {
-    // 길이 예외 처리
+    // instruction의 token 숫자 예외 처리
     if (ADD_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! ADD_OPERAND_SIZE는 %d입니다.\n", ADD_OPERAND_SIZE);
         exit(0);
     }
 
+    // 사용할 레지스터를 위치를 가져옵니다.
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
 
+    // ADD 연산 수행
     Register[dst_offset] = Register[src1_offset] + Register[src2_offset];
 
 
@@ -130,15 +139,19 @@ void ADD(int i) {
 
 // SUB instruction 처리 함수
 void SUB(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (SUB_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! SUB_OPERAND_SIZE는 %d입니다.\n", SUB_OPERAND_SIZE);
         exit(0);
     }
+
+    // 사용할 레지스터를 위치를 가져옵니다.
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
 
+    // SUB 연산 수행
     Register[dst_offset] = Register[src1_offset] - Register[src2_offset];
 
     printf("32190192> Subtracted %s(%d) to %s(%d) and changed %s to %d\n"
@@ -147,16 +160,18 @@ void SUB(int i) {
 
 // MUL instruction 처리 함수
 void MUL(int i) {
-    // 길이 예외 처리
+    // instruction의 token 숫자 예외 처리
     if (MUL_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! MUL_OPERAND_SIZE는 %d입니다.\n", MUL_OPERAND_SIZE);
         exit(0);
     }
 
+    // 사용할 레지스터를 위치를 가져옵니다.
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
 
+    // MUL 연산 수행
     Register[dst_offset] = Register[src1_offset] * Register[src2_offset];
 
     printf("32190192> Multiplied %s(%d) to %s(%d) and changed %s to %d\n"
@@ -165,21 +180,25 @@ void MUL(int i) {
 
 // DIV instruction 처리 함수
 void DIV(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (DIV_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! DIV_OPERAND_SIZE는 %d입니다.\n", DIV_OPERAND_SIZE);
         exit(0);
     }
 
+    // 0으로 나눌 때 예외 처리
     if (base_pointer(i, 3) == ZERO_BASE_POINTER) {
         printf("exception! 0으로 나눌수 없습니다.\n");
         exit(0);
     }
 
+    // 사용할 레지스터를 위치를 가져옵니다.
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
 
+    // DIV 연산 수행
     Register[dst_offset] = Register[src1_offset] / Register[src2_offset];
 
     printf("32190192> Divided %s(%d) to %s(%d) and changed %s to %d\n"
@@ -188,31 +207,40 @@ void DIV(int i) {
 
 // JMP instruction 처리 함수
 int JMP(int i, int j, int check) {
+
+    // 점프할 line을 16진수로 변환합니다.
     int line = hex_string_to_int(arr[i][j]);
     if (check) {
         printf("32190192> jumped to line %d\n", line);
     }
-    return line - 2;
+    return line - 2; // index가 0부터 시작하므로 -1을 해주었고
+    // 값을 리턴 후 main함수의 for문에 의해 i가 1증가하기 때문에 -1을 추가로 해주었습니다.
+    // 총 -2를 해주었습니다.
 }
 
 // BEQ instruction 처리 함수
 int BEQ(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (BEQ_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! BEQ_OPERAND_SIZE는 %d입니다.\n", BEQ_OPERAND_SIZE);
         exit(0);
     }
+
+    // 사용할 레지스터를 위치를 가져옵니다.
     int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
 
+    // 점프할 라인을 16진수로 가져옵니다.
     int line = hex_string_to_int(arr[i][3]);
 
-    if (Register[src1_offset] == Register[src2_offset]) {
+
+    if (Register[src1_offset] == Register[src2_offset]) { // 값이 같을 때 return 1
         printf("32190192> Checked if %s(%d) is equal to %s(%d) and jumped to line %d\n",
             arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
         return 1;
     }
-    else {
+    else { // 값이 다를 때 return 0
         printf("32190192> Checked if %s(%d) is not equal to %s(%d) and didn't jumped to line %d\n",
             arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
         return 0;
@@ -221,22 +249,26 @@ int BEQ(int i) {
 
 // BNE instruction 처리 함수
 int BNE(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (BNE_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! BNE_OPERAND_SIZE는 %d입니다.\n", BNE_OPERAND_SIZE);
         exit(0);
     }
+
+    // 사용할 레지스터를 위치를 가져옵니다.
     int src1_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src2_offset = base_pointer(i, 2) + move_offset(i, 2);
 
+    // 점프할 라인을 16진수로 가져옵니다.
     int line = hex_string_to_int(arr[i][3]);
 
-    if (Register[src1_offset] != Register[src2_offset]) {
+    if (Register[src1_offset] != Register[src2_offset]) { // 값이 다를 때 return 1
         printf("32190192> Checked if %s(%d) is not equal to %s(%d) and jumped to line %d\n",
             arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
         return 1;
     }
-    else {
+    else { // 값이 같을 때 return 0
         printf("32190192> Checked if %s(%d) is equal to %s(%d) and didn't jumped to line %d\n",
             arr[i][1], Register[src1_offset], arr[i][2], Register[src2_offset], line);
         return 0;
@@ -245,22 +277,25 @@ int BNE(int i) {
 
 // SLT instruction 처리 함수
 void SLT(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (SLT_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! SLT_OPERAND_SIZE는 %d입니다.\n", SLT_OPERAND_SIZE);
         exit(0);
     }
+
+    // 사용할 레지스터를 위치를 가져옵니다.
     int dst_offset = base_pointer(i, 1) + move_offset(i, 1);
     int src1_offset = base_pointer(i, 2) + move_offset(i, 2);
     int src2_offset = base_pointer(i, 3) + move_offset(i, 3);
 
-    if (Register[src1_offset] < Register[src2_offset]) {
+    if (Register[src1_offset] < Register[src2_offset]) { // 왼쪽 값이 작을 때
         Register[dst_offset] = 1;
         printf("32190192> Checked if %s(%d) is less than %s(%d) and set 1 to %s\n",
             arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1]);
 
     }
-    else {
+    else { // 왼쪽 값이 작지 않을 때
         Register[dst_offset] = 0;
         printf("32190192> Checked if %s(%d) is not less than %s(%d) and set 0 to %s\n",
             arr[i][2], Register[src1_offset], arr[i][3], Register[src2_offset], arr[i][1]);
@@ -269,7 +304,8 @@ void SLT(int i) {
 
 // NOP instruction 처리 함수
 void NOP(int i) {
-    // 길이 예외 처리
+
+    // instruction의 token 숫자 예외 처리
     if (NOP_OPERAND_SIZE != row_cnt[i] - 1) {
         printf("exception! NOP_OPERAND_SIZE는 %d입니다.\n", NOP_OPERAND_SIZE);
         exit(0);
@@ -340,13 +376,19 @@ int main(int argc, char* argv[]) {
         }
         else if (strcmp(arr[i][0], "BEQ") == 0) {
 
+            // 조건 검증
             int check = BEQ(i);
+
+            // 점프가 가능하면 점프합니다.
             if (check) i = JMP(i, 3, 0);
 
         }
         else if (strcmp(arr[i][0], "BNE") == 0) {
 
+            // 조건 검증
             int check = BNE(i);
+
+            // 점프가 가능하면 점프합니다.
             if (check) i = JMP(i, 3, 0);
 
         }
