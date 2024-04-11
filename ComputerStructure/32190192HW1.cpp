@@ -18,16 +18,20 @@
 #define MAX_COL_LENGTH 100
 #define MAX_ROW_LENGTH 1000
 
+// MIPS의 Register와 동일하게 진행하였습니다.
 // Register
-// t0 ~ t9 = Register[0] ~ Register[9] 
-// s0 ~ s7 = Register[10] ~ Register[17]
-// v0 = Register[18]
-// zero = Register[19] 
-#define T0_BASE_POINTER 0
-#define S0_BASE_POINTER 10
-#define V0_BASE_POINTER 18
-#define ZERO_BASE_POINTER 19
-int Register[20];
+// zero = Register[0] 
+// v0 = Register[2]
+// t0 ~ t9 = Register[8] ~ Register[15] 
+// s0 ~ s7 = Register[16] ~ Register[23]
+
+#define ZERO_BASE_POINTER 0
+#define V0_BASE_POINTER 2
+#define T0_BASE_POINTER 8
+#define S0_BASE_POINTER 16
+
+
+int Register[32];
 
 
 char* arr[MAX_ROW_LENGTH][MAX_COL_LENGTH]; // 파일을 파싱해서 2차원 string배열로 저장합니다.
@@ -81,7 +85,7 @@ int hex_string_to_int(char* hex_string) {
 // base pointer index 위치를 잡아주는 함수
 int base_pointer(int i, int j) {
     int base_pointer = 0;
-    if (arr[i][j][0] == 'r') base_pointer += V0_BASE_POINTER;
+    if (arr[i][j][0] == 'v') base_pointer += V0_BASE_POINTER;
     if (arr[i][j][0] == 's') base_pointer += S0_BASE_POINTER;
     if (arr[i][j][0] == 't') base_pointer += T0_BASE_POINTER;
     if (arr[i][j][0] == 'z') base_pointer += ZERO_BASE_POINTER;
@@ -401,7 +405,7 @@ int main(int argc, char* argv[]) {
     }
 
     // v0 register 값 출력
-    printf("32190192> Print out %d\n", Register[V0_BASE_POINTER]);
+    printf("32190192> v0 is  %d\n", Register[V0_BASE_POINTER]);
 
     // 동적으로 할당된 메모리를 해제
     memory_free();
