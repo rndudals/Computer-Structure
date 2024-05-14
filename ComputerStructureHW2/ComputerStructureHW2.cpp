@@ -7,7 +7,7 @@ void printBinary(unsigned int num) {
         printf("%d", (num >> i) & 1);
     }
 }
-
+// test commit
 int main(int argc, char* argv[]) {
     printf("Hello World\n");
     // 명령행에서 파일 이름을 인자로 전달하지 않았을 경우 오류 메시지를 출력하고 종료합니다.
