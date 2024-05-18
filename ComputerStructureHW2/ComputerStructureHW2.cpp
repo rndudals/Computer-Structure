@@ -7,6 +7,13 @@ int cycle = 0;
 int data_row;
 char data[100][33]; // 이진 문자열을 저장하는 배열
 int pc = 0;
+char* cur_instruction; // 현재 instruction
+int Register[32];
+
+char* defineInstruction(int n) {
+
+
+}
 
 // 이진수 문자열을 16진수 소문자 문자열로 변환하여 반환하는 함수
 char* binaryToHexLower(const char* binaryString) {
@@ -33,18 +40,20 @@ void printBinary(unsigned int num) {
 }
 
 // 명령어 타입을 판별하고 출력하는 함수
-void classifyInstruction(uint32_t instruction) {
+char classifyInstruction(uint32_t instruction) {
+    char ret;
     uint32_t opcode = instruction >> 26; // 상위 6비트 추출
     printf("\t[Instruction Decode] ");
     if (opcode == 0) {
-        printf("Type: R, ");
+        ret = 'R';
     }
     else if (opcode == 0x2 || opcode == 0x3) {
-        printf("Type: J, ");
+        ret = 'J';
     }
     else {
-        printf("Type: I, ");
+        ret = 'I';
     }
+    return ret;
 }
 
 void parseData(FILE* fp) {
@@ -67,17 +76,65 @@ void parseData(FILE* fp) {
     data_row = row;
 }
 
+void parseRType(uint32_t instruction) {
+    uint32_t opcode = (instruction >> 26) & 0x3F; // opcode 추출 (26-31비트, 총 6비트)
+    uint32_t rs = (instruction >> 21) & 0x1F;     // rs 추출 (21-25비트, 총 5비트)
+    uint32_t rt = (instruction >> 16) & 0x1F;     // rt 추출 (16-20비트, 총 5비트)
+    uint32_t rd = (instruction >> 11) & 0x1F;     // rd 추출 (11-15비트, 총 5비트)
+    uint32_t shamt = (instruction >> 6) & 0x1F;   // shamt 추출 (6-10비트, 총 5비트)
+    uint32_t funct = instruction & 0x3F;          // funct 추출 (0-5비트, 총 6비트)
+
+    printf("\nOpcode: %02d\n", opcode);
+    printf("RS: %02d\n", rs);
+    printf("RT: %02d\n", rt);
+    printf("RD: %02d\n", rd);
+    printf("Shamt: %02d\n", shamt);
+    printf("Funct: %02d\n", funct);
+}
+
 int instructionFetch() {
     printf("32190192> Cycle: %d\n", ++cycle);
     printf("\t[Instruction Fetch] 0x%s  (PC=0x%08x)\n", binaryToHexLower(data[pc / 4]), pc);
-    printf("\tdata[%d]: %s\n", pc / 4, data[pc / 4]);
-    classifyInstruction(binaryToUint32(data[pc / 4])); // 명령어 타입 분류 및 출력
+
+    // 현재 instruction 저장 
+    cur_instruction = data[pc / 4];
     pc = pc + 4;
     return pc / 4;
 }
 
-void run() {
+void instructionDecode() {
 
+    char type = classifyInstruction(binaryToUint32(cur_instruction)); // 명령어 타입 분류
+    printf("Type: %c, ", type);
+
+    printf("%s", cur_instruction);
+
+
+    if (type = 'R') {
+        parseRType(binaryToUint32(cur_instruction));
+    }
+    else if (type = 'J') {
+
+    }
+    else { // type = 'I'
+
+    }
+}
+
+void run() {
+    while (1) {
+
+        // 1. Instruction Fetch
+        int next_row = instructionFetch();
+        if (next_row > data_row) break;
+
+        // 2. Instruction Decode
+        instructionDecode();
+
+
+        printf("\n");
+        printf("\n");
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -91,18 +148,11 @@ int main(int argc, char* argv[]) {
         perror("Error opening file");
         exit(0);
     }
+
     parseData(fp);
-    while (1) {
-
-        int next_row = instructionFetch();
-        if (next_row > data_row) break;
-
-
-        printf("\n");
-        printf("\n");
-    }
 
     run();
+
     fclose(fp);
     return 0;
 }
