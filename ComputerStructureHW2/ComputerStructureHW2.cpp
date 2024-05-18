@@ -3,6 +3,29 @@
 #include <string.h>
 #include <stdint.h>
 
+int cycle = 0;
+int data_row;
+char data[100][33]; // 이진 문자열을 저장하는 배열
+int pc = 0;
+
+// 이진수 문자열을 16진수 소문자 문자열로 변환하여 반환하는 함수
+char* binaryToHexLower(const char* binaryString) {
+    // 변환된 16진수 값을 저장할 고정 길이 문자열 할당
+    static char hexString[9]; // 8자리 16진수 + 널 종료 문자
+    unsigned long number = strtol(binaryString, NULL, 2);
+
+    // 16진수 소문자 문자열 생성
+    sprintf(hexString, "%08lx", number); // 소문자로 출력하기 위해 %lx 사용
+
+    return hexString;
+}
+
+// 이진수 문자열을 uint32_t로 변환하는 함수
+uint32_t binaryToUint32(const char* binaryString) {
+    // 이진수 문자열을 uint32_t로 변환
+    return (uint32_t)strtol(binaryString, NULL, 2);
+}
+
 void printBinary(unsigned int num) {
     for (int i = 31; i >= 0; i--) {
         printf("%d", (num >> i) & 1);
@@ -24,25 +47,11 @@ void classifyInstruction(uint32_t instruction) {
     }
 }
 
-int main(int argc, char* argv[]) {
-    printf("Hello World\n");
-
-    if (argc != 2) {
-        printf("Usage: %s <filename>\n", argv[0]);
-        return -1;
-    }
-
-    FILE* fp = fopen(argv[1], "rb");
-    if (fp == NULL) {
-        perror("Error opening file");
-        exit(0);
-    }
-
+void parseData(FILE* fp) {
     unsigned char buffer[4];
     size_t bytesRead;
-    int cycle = 1;
-    int pc = 0;
-    char data[100][33]; // 이진 문자열을 저장하는 배열
+
+
     int row = 0;
 
     while ((bytesRead = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
@@ -53,15 +62,47 @@ int main(int argc, char* argv[]) {
         }
         data[row][32] = '\0';
 
-        printf("32190192> Cycle: %d\n", cycle++);
-        printf("\t[Instruction Fetch] %08x  (PC=0x%08x)\n", instruction, pc);
-        printf("\tdata[%d]: %s\n", row, data[row]);
-        classifyInstruction(instruction); // 명령어 타입 분류 및 출력
         row++;
-        pc += 4;
+    }
+    data_row = row;
+}
+
+int instructionFetch() {
+    printf("32190192> Cycle: %d\n", ++cycle);
+    printf("\t[Instruction Fetch] 0x%s  (PC=0x%08x)\n", binaryToHexLower(data[pc / 4]), pc);
+    printf("\tdata[%d]: %s\n", pc / 4, data[pc / 4]);
+    classifyInstruction(binaryToUint32(data[pc / 4])); // 명령어 타입 분류 및 출력
+    pc = pc + 4;
+    return pc / 4;
+}
+
+void run() {
+
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <filename>\n", argv[0]);
+        return -1;
+    }
+
+    FILE* fp = fopen(argv[1], "rb");
+    if (fp == NULL) {
+        perror("Error opening file");
+        exit(0);
+    }
+    parseData(fp);
+    while (1) {
+
+        int next_row = instructionFetch();
+        if (next_row > data_row) break;
+
+
+        printf("\n");
         printf("\n");
     }
 
+    run();
     fclose(fp);
     return 0;
 }
