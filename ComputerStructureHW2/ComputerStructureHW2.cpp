@@ -126,7 +126,7 @@ void parseRType(uint32_t instruction) {
     case 24: // mult
         printf("Inst: %s %s %s\n", "mult", defineRegisterName(R_rs), defineRegisterName(R_rt));
         printf("\t\topcode: %d, rs: %d (%x), rt: %d (%x)\n", R_opcode, R_rs, R_rs, R_rt, R_rt);
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 3;
+        RegDst = 0; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 3;
         break;
     case 18: // mflo
         printf("Inst: %s %s\n", "mflo", defineRegisterName(R_rd));
@@ -172,29 +172,21 @@ void parseIType(uint32_t instruction) {
         printf("Inst: %s %s %s %d\n", "addiu", defineRegisterName(I_rt), defineRegisterName(I_rs), I_immediate);
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
-        printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
-            RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
         break;
     case 43: // sw
         printf("Inst: %s %s %d(%s)\n", "sw", defineRegisterName(I_rt), I_immediate, defineRegisterName(I_rs));
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
         RegDst = 0; RegWrite = 0; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 1; MemtoReg = 0; ALUOp = 2;
-        printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
-            RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
         break;
     case 35: // lw
         printf("Inst: %s %s %d(%s)\n", "lw", defineRegisterName(I_rt), I_immediate, defineRegisterName(I_rs));
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 1; MemWrite = 0; MemtoReg = 1; ALUOp = 2;
-        printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
-            RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
         break;
     case 10: // slti
         printf("Inst: %s %s %s %d\n", "slti", defineRegisterName(I_rt), defineRegisterName(I_rs), I_immediate);
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
-        RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 3; // SLTI specific operation code
-        printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
-            RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
+        RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 7; // SLTI specific operation code
         break;
     case 5: // bnez or bne
         if (I_rt == 0) {
@@ -204,9 +196,7 @@ void parseIType(uint32_t instruction) {
             printf("Inst: %s %s %s %d\n", "bne", defineRegisterName(I_rs), defineRegisterName(I_rt), I_immediate);
         }
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 1; // Branch specific operation
-        printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
-            RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
+        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         break;
     case 4: // b or beqz
         if (I_rt == 0) {
@@ -216,13 +206,13 @@ void parseIType(uint32_t instruction) {
             printf("Inst: %s %s %d\n", "beqz", defineRegisterName(I_rs), I_immediate);
         }
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 1; // Branch specific operation
-        printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
-            RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
+        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         break;
     default:
         break;
     }
+    printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
+        RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
 }
 
 // 명령어 타입을 판별하고 출력하는 함수
