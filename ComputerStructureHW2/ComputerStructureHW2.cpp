@@ -147,8 +147,8 @@ void parseRType(uint32_t instruction) {
 void parseJType(uint32_t instruction) {
     opcode = (instruction >> 26) & 0x3F; // opcode 추출
     J_address = instruction & 0x03FFFFFF; // 주소 추출
-    printf("Inst: %s %08x\n", "jal : ", J_address);
-    printf("opcode: %d, address: %08x\n", opcode, J_address);
+    printf("Inst: jal: 0x%08x\n", J_address);
+    printf("\t\topcode: %d, address: %08x\n", opcode, J_address);
 
     int RegDst = 0; int RegWrite = 1; int ALUSrc = 0; int PCSrc = 1; int MemRead = 0; int MemWrite = 0; int MemtoReg = 0; int ALUOp = 0;
 
@@ -289,7 +289,36 @@ int instructionDecode() {
 }
 
 void execute() {
+    int readData1 = Register[rs];
+    int readDaat2 = Register[rt];
+
     printf("\t[Execute]\n");
+    if (ALUSrc == 1) {
+
+    }
+
+    switch (ALUOp) {
+    case 0: // jr, jal -> and
+
+        break;
+    case 2: // addu, addiu, sw, lw  -> add
+
+        break;
+    case 3: // mult
+
+        break;
+    case 4: // mflo
+
+        break;
+    case 6: // bnez, bne, beqz, b -> sub
+
+        break;
+    case 7: // slti
+
+        break;
+
+    default: break;
+    }
 }
 
 void memoryAccess() {
