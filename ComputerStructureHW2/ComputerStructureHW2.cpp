@@ -11,6 +11,7 @@ char* cur_instruction; // 현재 instruction
 int Register[32];
 
 
+
 uint32_t opcode;
 uint32_t rs;
 uint32_t rt;
@@ -31,11 +32,9 @@ int MemWrite;   // MemWrite 신호에 대한 변수
 int MemtoReg;   // MemtoReg 신호에 대한 변수
 int ALUOp;      // ALUOp 신호에 대한 변수
 
+int ALUResult;  // ALU 연산 결과
 
-char* defineInstruction(int n) {
 
-
-}
 
 
 
@@ -298,22 +297,43 @@ void execute() {
     }
 
     switch (ALUOp) {
-    case 0: // jr, jal -> and
+    case 0: // jr(8), jal(3) -> and 
 
         break;
-    case 2: // addu, addiu, sw, lw  -> add
+    case 2: // addu(33), addiu(9), sw(43), lw(35)  -> add
+        switch (opcode)
+        {
+        case 33: // addu(33)
+            ALUResult = Register[rs] + Register[rt];
+
+            break;
+        case 9: // addiu(9)
+            ALUResult = Register[rs] + immediate;
+
+            break;
+        case 43: // sw(43)
+            ALUResult = Register[rs] + immediate;
+
+            break;
+        case 35: // lw(35)
+            ALUResult = Register[rs] + immediate;
+
+            break;
+        default:
+            break;
+        }
+        break;
+    case 3: // mult(24)
 
         break;
-    case 3: // mult
+    case 4: // mflo(18)
 
         break;
-    case 4: // mflo
+    case 6: // bnez(5), bne(5), beqz(4), b(4) -> sub
 
         break;
-    case 6: // bnez, bne, beqz, b -> sub
+    case 7: // slti(35)
 
-        break;
-    case 7: // slti
 
         break;
 
@@ -326,8 +346,7 @@ void memoryAccess() {
         printf("\t[Memory Access] Load, Address: , Value: \n");
     }
     else if (MemWrite == 1) { // store일 때만 1
-
-        printf("\t[Memory Access] Store, Address: , Value: \n");
+        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %d\n", ALUResult, ALUResult);
     }
     else {
         printf("\t[Memory Access] Pass\n");
@@ -342,6 +361,16 @@ void writeBack() {
 
     if (RegWrite == 1) { //addu mult mflo lw addiu slti : 1
         printf(" TODO");
+        switch (opcode)
+        {
+        case 9:
+            Register[rt] = ALUResult;
+            printf(" Target: %s, Value: %d / ", defineRegisterName(rt), ALUResult);
+            break;
+
+        default:
+            break;
+        }
     }
 }
 
@@ -355,7 +384,13 @@ void possibleJump() {
     }
 }
 
+void init() {
+    Register[29] = 16777216; // sp = 0x1000000로 시작
+}
+
+
 void run() {
+    init();
     while (1) {
         printf("\n");
         printf("\n");
