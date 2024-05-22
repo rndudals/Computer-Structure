@@ -110,7 +110,6 @@ void parseRType(uint32_t instruction) {
     shamt = (instruction >> 6) & 0x1F;   // shamt 추출
     funct = instruction & 0x3F;          // funct 추출
 
-    int RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp;
 
     switch (funct) {
     case 37: // move
@@ -285,8 +284,46 @@ int instructionDecode() {
     else { // type == 'I'
         parseIType(binaryToUint32(cur_instruction));
     }
-    printf("[cur_instruction] : %s", cur_instruction);
+
     return 0;
+}
+
+void execute() {
+    printf("\t[Execute]\n");
+}
+
+void memoryAccess() {
+    if (MemRead == 1) { // load일 때만 1
+        printf("\t[Memory Access] Load, Address: , Value: \n");
+    }
+    else if (MemWrite == 1) { // store일 때만 1
+
+        printf("\t[Memory Access] Store, Address: , Value: \n");
+    }
+    else {
+        printf("\t[Memory Access] Pass\n");
+    }
+}
+
+void writeBack() {
+    printf("\t[Write Back]");
+    if (MemtoReg == 1) { // load일 때만 1
+        printf(" target: %d, Value: 0x%08x", Register[rt], Register[rt]);
+    }
+
+    if (RegWrite == 1) { //addu mult mflo lw addiu slti : 1
+        printf(" TODO");
+    }
+}
+
+void possibleJump() {
+    if (PCSrc == 1) {
+        // PC
+        printf(" newPC: 0x%08x\n", pc);
+    }
+    else {
+        printf(" newPC: 0x%08x\n", pc);
+    }
 }
 
 void run() {
@@ -300,7 +337,17 @@ void run() {
         // 2. Instruction Decode
         if (instructionDecode()) { continue; }
 
+        // 3. Excute
+        execute();
 
+        // 4. Memory Access
+        memoryAccess();
+
+        // 5. Write Back  
+        writeBack();
+
+        possibleJump();
+        printf("[cur_instruction] : %s", cur_instruction);
         printf("\n");
         printf("\n");
     }
