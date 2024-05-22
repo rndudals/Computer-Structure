@@ -11,20 +11,16 @@ char* cur_instruction; // 현재 instruction
 int Register[32];
 
 
-uint32_t R_opcode;
-uint32_t R_rs;
-uint32_t R_rt;
-uint32_t R_rd;
-uint32_t R_shamt;
-uint32_t R_funct;
+uint32_t opcode;
+uint32_t rs;
+uint32_t rt;
+uint32_t rd;
+uint32_t shamt;
+uint32_t funct;
 
-uint32_t J_opcode;
 uint32_t J_address;
 
-uint32_t I_opcode;
-uint32_t I_rs;
-uint32_t I_rt;
-int16_t I_immediate;
+int16_t immediate;
 
 int RegDst;     // RegDst 신호에 대한 변수
 int RegWrite;   // RegWrite 신호에 대한 변수
@@ -107,40 +103,40 @@ void printBinary(unsigned int num) {
 
 
 void parseRType(uint32_t instruction) {
-    int R_opcode = (instruction >> 26) & 0x3F; // opcode 추출
-    int R_rs = (instruction >> 21) & 0x1F;     // rs 추출
-    int R_rt = (instruction >> 16) & 0x1F;     // rt 추출
-    int R_rd = (instruction >> 11) & 0x1F;     // rd 추출
-    int R_shamt = (instruction >> 6) & 0x1F;   // shamt 추출
-    int R_funct = instruction & 0x3F;          // funct 추출
+    opcode = (instruction >> 26) & 0x3F; // opcode 추출
+    rs = (instruction >> 21) & 0x1F;     // rs 추출
+    rt = (instruction >> 16) & 0x1F;     // rt 추출
+    rd = (instruction >> 11) & 0x1F;     // rd 추출
+    shamt = (instruction >> 6) & 0x1F;   // shamt 추출
+    funct = instruction & 0x3F;          // funct 추출
 
     int RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp;
 
-    switch (R_funct) {
+    switch (funct) {
     case 37: // move
     case 33: // addu
-        printf("Inst: %s %s %s %s\n", "addu", defineRegisterName(R_rd), defineRegisterName(R_rs), defineRegisterName(R_rt));
-        printf("\t\topcode: %d, rd: %d (%x), rs: %d (%x), rt: %d (%x)\n", R_opcode, R_rd, R_rd, R_rs, R_rs, R_rt, R_rt);
+        printf("Inst: %s %s %s %s\n", "addu", defineRegisterName(rd), defineRegisterName(rs), defineRegisterName(rt));
+        printf("\t\topcode: %d, rd: %d (%x), rs: %d (%x), rt: %d (%x)\n", opcode, rd, rd, rs, rs, rt, rt);
         RegDst = 1; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
         break;
     case 24: // mult
-        printf("Inst: %s %s %s\n", "mult", defineRegisterName(R_rs), defineRegisterName(R_rt));
-        printf("\t\topcode: %d, rs: %d (%x), rt: %d (%x)\n", R_opcode, R_rs, R_rs, R_rt, R_rt);
+        printf("Inst: %s %s %s\n", "mult", defineRegisterName(rs), defineRegisterName(rt));
+        printf("\t\topcode: %d, rs: %d (%x), rt: %d (%x)\n", opcode, rs, rs, rt, rt);
         RegDst = 0; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 3;
         break;
     case 18: // mflo
-        printf("Inst: %s %s\n", "mflo", defineRegisterName(R_rd));
-        printf("\t\topcode: %d, rd: %d (%x)\n", R_opcode, R_rd, R_rd);
+        printf("Inst: %s %s\n", "mflo", defineRegisterName(rd));
+        printf("\t\topcode: %d, rd: %d (%x)\n", opcode, rd, rd);
         RegDst = 1; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 4;
         break;
     case 8: // jr
-        printf("Inst: %s %s\n", "jr", defineRegisterName(R_rs));
-        printf("\t\topcode: %d, rs: %d (%x)\n", R_opcode, R_rs, R_rs);
+        printf("Inst: %s %s\n", "jr", defineRegisterName(rs));
+        printf("\t\topcode: %d, rs: %d (%x)\n", opcode, rs, rs);
         RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 0;
         break;
     default:
         RegDst = RegWrite = ALUSrc = PCSrc = MemRead = MemWrite = MemtoReg = ALUOp = 0;
-        printf("\t\topcode: %d, Unknown funct %02d\n", R_opcode, R_funct);
+        printf("\t\topcode: %d, Unknown funct %02d\n", opcode, funct);
         break;
     }
 
@@ -150,10 +146,10 @@ void parseRType(uint32_t instruction) {
 
 
 void parseJType(uint32_t instruction) {
-    int J_opcode = (instruction >> 26) & 0x3F; // opcode 추출
-    int J_address = instruction & 0x03FFFFFF; // 주소 추출
+    opcode = (instruction >> 26) & 0x3F; // opcode 추출
+    J_address = instruction & 0x03FFFFFF; // 주소 추출
     printf("Inst: %s %08x\n", "jal : ", J_address);
-    printf("opcode: %d, address: %08x\n", J_opcode, J_address);
+    printf("opcode: %d, address: %08x\n", opcode, J_address);
 
     int RegDst = 0; int RegWrite = 1; int ALUSrc = 0; int PCSrc = 1; int MemRead = 0; int MemWrite = 0; int MemtoReg = 0; int ALUOp = 0;
 
@@ -163,49 +159,49 @@ void parseJType(uint32_t instruction) {
 
 
 void parseIType(uint32_t instruction) {
-    I_opcode = (instruction >> 26) & 0x3F; // opcode 추출 (26-31비트, 총 6비트)
-    I_rs = (instruction >> 21) & 0x1F;     // rs 추출 (21-25비트, 총 5비트)
-    I_rt = (instruction >> 16) & 0x1F;     // rt 추출 (16-20비트, 총 5비트)
-    I_immediate = (int16_t)(instruction & 0xFFFF); // Immediate 추출 (0-15비트, 총 16비트, 부호 확장 고려)
-    switch (I_opcode) {
+    opcode = (instruction >> 26) & 0x3F; // opcode 추출 (26-31비트, 총 6비트)
+    rs = (instruction >> 21) & 0x1F;     // rs 추출 (21-25비트, 총 5비트)
+    rt = (instruction >> 16) & 0x1F;     // rt 추출 (16-20비트, 총 5비트)
+    immediate = (int16_t)(instruction & 0xFFFF); // Immediate 추출 (0-15비트, 총 16비트, 부호 확장 고려)
+    switch (opcode) {
     case 9:
-        printf("Inst: %s %s %s %d\n", "addiu", defineRegisterName(I_rt), defineRegisterName(I_rs), I_immediate);
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
+        printf("Inst: %s %s %s %d\n", "addiu", defineRegisterName(rt), defineRegisterName(rs), immediate);
+        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, rt, rs, rs, immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
         break;
     case 43: // sw
-        printf("Inst: %s %s %d(%s)\n", "sw", defineRegisterName(I_rt), I_immediate, defineRegisterName(I_rs));
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
+        printf("Inst: %s %s %d(%s)\n", "sw", defineRegisterName(rt), immediate, defineRegisterName(rs));
+        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, rt, rs, rs, immediate);
         RegDst = 0; RegWrite = 0; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 1; MemtoReg = 0; ALUOp = 2;
         break;
     case 35: // lw
-        printf("Inst: %s %s %d(%s)\n", "lw", defineRegisterName(I_rt), I_immediate, defineRegisterName(I_rs));
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
+        printf("Inst: %s %s %d(%s)\n", "lw", defineRegisterName(rt), immediate, defineRegisterName(rs));
+        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, rt, rs, rs, immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 1; MemWrite = 0; MemtoReg = 1; ALUOp = 2;
         break;
     case 10: // slti
-        printf("Inst: %s %s %s %d\n", "slti", defineRegisterName(I_rt), defineRegisterName(I_rs), I_immediate);
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
+        printf("Inst: %s %s %s %d\n", "slti", defineRegisterName(rt), defineRegisterName(rs), immediate);
+        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, rt, rs, rs, immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 7; // SLTI specific operation code
         break;
     case 5: // bnez or bne
-        if (I_rt == 0) {
-            printf("Inst: %s %s %d\n", "bnez", defineRegisterName(I_rs), I_immediate);
+        if (rt == 0) {
+            printf("Inst: %s %s %d\n", "bnez", defineRegisterName(rs), immediate);
         }
         else {
-            printf("Inst: %s %s %s %d\n", "bne", defineRegisterName(I_rs), defineRegisterName(I_rt), I_immediate);
+            printf("Inst: %s %s %s %d\n", "bne", defineRegisterName(rs), defineRegisterName(rt), immediate);
         }
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
+        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, rt, rs, rs, immediate);
         RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         break;
     case 4: // b or beqz
-        if (I_rt == 0) {
-            printf("Inst: %s %d\n", "b", I_immediate);
+        if (rt == 0) {
+            printf("Inst: %s %d\n", "b", immediate);
         }
         else {
-            printf("Inst: %s %s %d\n", "beqz", defineRegisterName(I_rs), I_immediate);
+            printf("Inst: %s %s %d\n", "beqz", defineRegisterName(rs), immediate);
         }
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", I_opcode, I_rt, I_rt, I_rs, I_rs, I_immediate);
+        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, rt, rs, rs, immediate);
         RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         break;
     default:
