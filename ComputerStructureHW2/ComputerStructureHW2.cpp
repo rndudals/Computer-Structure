@@ -306,8 +306,8 @@ void execute() {
 
 void memoryAccess() {
     if (MemRead == 1) { // load일 때만 1
-        Register[rs] = memory[ALUResult];
-        printf("\t[Memory Access] Load, Address: 0x%08x, Value: %d\n", ALUResult, Register[rs]);
+        Register[rt] = memory[ALUResult];
+        printf("\t[Memory Access] Load, Address: 0x%08x, Value: %d\n", ALUResult, Register[rt]);
     }
     else if (MemWrite == 1) { // store일 때만 1
         memory[ALUResult] = Register[rt];
@@ -390,11 +390,12 @@ void run() {
         writeBack();
 
         possibleJump();
+        printf("\ttest : %d %d\n", 30, Register[30]);
         printf("[cur_instruction] : %s", cur_instruction);
         printf("\n");
         printf("\n");
         if (test == 70) break;
-        test++;
+        //test++;
     }
 }
 
