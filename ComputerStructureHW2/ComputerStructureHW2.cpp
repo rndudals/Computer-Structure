@@ -86,22 +86,22 @@ void parseRType(uint32_t instruction) {
     case 37: // move
     case 33: // addu
         printf("Inst: %s %s %s %s\n", "addu", defineRegisterName(rd), defineRegisterName(rs), defineRegisterName(rt));
-        printf("\t\topcode: %d, rd: %d (%x), rs: %d (%x), rt: %d (%x)\n", opcode, rd, Register[rd], rs, Register[rs], rt, Register[rt]);
+        printf("\t\topcode: %d, rd: %d (%d), rs: %d (%d), rt: %d (%d)\n", opcode, rd, Register[rd], rs, Register[rs], rt, Register[rt]);
         RegDst = 1; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
         break;
     case 24: // mult
         printf("Inst: %s %s %s\n", "mult", defineRegisterName(rs), defineRegisterName(rt));
-        printf("\t\topcode: %d, rs: %d (%x), rt: %d (%x)\n", opcode, rs, Register[rs], rt, Register[rt]);
+        printf("\t\topcode: %d, rs: %d (%d), rt: %d (%d)\n", opcode, rs, Register[rs], rt, Register[rt]);
         RegDst = 0; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 3;
         break;
     case 18: // mflo
         printf("Inst: %s %s\n", "mflo", defineRegisterName(rd));
-        printf("\t\topcode: %d, rd: %d (%x)\n", opcode, rd, Register[rd]);
+        printf("\t\topcode: %d, rd: %d (%d)\n", opcode, rd, Register[rd]);
         RegDst = 1; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 4;
         break;
     case 8: // jr
         printf("Inst: %s %s\n", "jr", defineRegisterName(rs));
-        printf("\t\topcode: %d, rs: %d (%x)\n", opcode, rs, Register[rs]);
+        printf("\t\topcode: %d, rs: %d (%d)\n", opcode, rs, Register[rs]);
         RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 0;
         break;
     default:
@@ -136,33 +136,36 @@ void parseIType(uint32_t instruction) {
     switch (opcode) {
     case 9:
         printf("Inst: %s %s %s %d\n", "addiu", defineRegisterName(rt), defineRegisterName(rs), immediate);
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
+        printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
         break;
     case 43: // sw
         printf("Inst: %s %s %d(%s)\n", "sw", defineRegisterName(rt), immediate, defineRegisterName(rs));
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
+        printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
         RegDst = 0; RegWrite = 0; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 1; MemtoReg = 0; ALUOp = 2;
         break;
     case 35: // lw
         printf("Inst: %s %s %d(%s)\n", "lw", defineRegisterName(rt), immediate, defineRegisterName(rs));
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
+        printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 1; MemWrite = 0; MemtoReg = 1; ALUOp = 2;
         break;
     case 10: // slti
         printf("Inst: %s %s %s %d\n", "slti", defineRegisterName(rt), defineRegisterName(rs), immediate);
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
+        printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
         RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 7; // SLTI specific operation code
         break;
     case 5: // bnez or bne
+        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         if (rt == 0) {
             printf("Inst: %s %s %d\n", "bnez", defineRegisterName(rs), immediate);
+            if (Register[rs] == 0) { PCSrc = 0; }
         }
         else {
             printf("Inst: %s %s %s %d\n", "bne", defineRegisterName(rs), defineRegisterName(rt), immediate);
         }
         printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
+
+
         break;
     case 4: // b or beqz
         if (rt == 0) {
@@ -171,7 +174,7 @@ void parseIType(uint32_t instruction) {
         else {
             printf("Inst: %s %s %d\n", "beqz", defineRegisterName(rs), immediate);
         }
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
+        printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
         RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         break;
     default:
@@ -288,8 +291,13 @@ void execute() {
         printf(" ALU = %d\n", ALUResult);
         break;
     case 7: // slti(35)
-
-
+        if (readData1 < readData2) {
+            ALUResult = 1;
+        }
+        else {
+            ALUResult = 0;
+        }
+        printf(" ALU = %d\n", ALUResult);
         break;
 
     default: break;
@@ -298,11 +306,12 @@ void execute() {
 
 void memoryAccess() {
     if (MemRead == 1) { // load일 때만 1
-        printf("\t[Memory Access] Load, Address: , Value: \n");
+        Register[rs] = memory[ALUResult];
+        printf("\t[Memory Access] Load, Address: 0x%08x, Value: %d\n", ALUResult, Register[rs]);
     }
     else if (MemWrite == 1) { // store일 때만 1
-        memory[ALUResult] = Register[readData1];
-        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %d\n", ALUResult, Register[readData1]);
+        memory[ALUResult] = Register[rt];
+        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %d\n", ALUResult, Register[rt]);
     }
     else {
         printf("\t[Memory Access] Pass\n");
@@ -311,29 +320,41 @@ void memoryAccess() {
 
 void writeBack() {
     printf("\t[Write Back]");
-    if (MemtoReg == 1) { // load일 때만 1
-        printf(" target: %s, Value: 0x%08x", defineRegisterName(rt), Register[rt]);
-    }
 
-    if (RegWrite == 1) { //move addu mult mflo lw addiu slti : 1
+    if (RegWrite == 1 && MemtoReg != 1) { //move addu mult mflo lw addiu slti : 1
         printf(" TODO");
         if (RegDst == 1) {
             Register[rd] = ALUResult;
-            printf(" Target: %s, Value: %d / ", defineRegisterName(rd), ALUResult);
+            printf(" Target: %s, Value: %d /", defineRegisterName(rd), ALUResult);
         }
         else {
             Register[rs] = ALUResult;
-            printf(" Target: %s, Value: %d / ", defineRegisterName(rs), ALUResult);
+            printf(" Target: %s, Value: %d /", defineRegisterName(rs), ALUResult);
         }
+    }
 
-
-
+    if (MemtoReg == 1) { // load일 때만 1
+        Register[rt] = memory[ALUResult];
+        printf(" target: %s, Value: %d /", defineRegisterName(rt), memory[ALUResult]);
     }
 }
 
 void possibleJump() {
     if (PCSrc == 1) {
         // PC
+        switch (opcode)
+        {
+        case 4: // beqz(4), b(4)
+            pc = pc + 4 * immediate;
+            break;
+
+        case 5: // bnez(5), bne(5)
+            pc = pc + 4 * immediate;
+            /* code */
+            break;
+        default:
+            break;
+        }
         printf(" newPC: 0x%08x\n", pc);
     }
     else {
@@ -348,6 +369,7 @@ void init() {
 
 void run() {
     init();
+    int test = 0;
     while (1) {
         printf("\n");
         printf("\n");
@@ -371,6 +393,8 @@ void run() {
         printf("[cur_instruction] : %s", cur_instruction);
         printf("\n");
         printf("\n");
+        if (test == 70) break;
+        test++;
     }
 }
 
