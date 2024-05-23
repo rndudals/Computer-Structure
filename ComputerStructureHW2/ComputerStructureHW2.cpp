@@ -9,7 +9,6 @@ char data[100][33]; // 이진 문자열을 저장하는 배열
 int pc = 0;
 char* cur_instruction; // 현재 instruction
 int Register[32];
-int space[4294967295];
 
 
 uint32_t opcode;
@@ -20,7 +19,7 @@ uint32_t shamt;
 uint32_t funct;
 
 uint32_t J_address;
-
+uint32_t memory[16777217];
 int16_t immediate;
 
 int RegDst;     // RegDst 신호에 대한 변수
@@ -35,7 +34,8 @@ int ALUOp;      // ALUOp 신호에 대한 변수
 int ALUResult;  // ALU 연산 결과
 
 
-
+int readData1;
+int readData2;
 
 
 char* defineRegisterName(int n) {
@@ -260,42 +260,23 @@ int instructionDecode() {
 }
 
 void execute() {
-    int readData1 = Register[rs];
-    int readDaat2 = Register[rt];
+    readData1 = Register[rs];
+    readData2 = Register[rt];
 
     printf("\t[Execute]");
     if (ALUSrc == 1) {
-
+        readData2 = immediate;
     }
 
     switch (ALUOp) {
     case 0: // jr(8), jal(3) -> and 
 
         break;
-    case 2: // addu(33), addiu(9), sw(43), lw(35)  -> add
-        switch (opcode)
-        {
-        case 37:
-        case 33: // addu(33)
-            ALUResult = Register[rs] + Register[rt];
-            printf(" ALU = %d\n", ALUResult);
-            break;
-        case 9: // addiu(9)
-            ALUResult = Register[rs] + immediate;
-            printf(" ALU = %d\n", ALUResult);
-            break;
-        case 43: // sw(43)
-            ALUResult = Register[rs] + immediate;
-            printf(" ALU = %d\n", ALUResult);
-            break;
-        case 35: // lw(35)
-            ALUResult = Register[rs] + immediate;
-            printf(" ALU = %d\n", ALUResult);
-            break;
-        default:
-            break;
-        }
+    case 2: // move(37) addu(33), addiu(9), sw(43), lw(35)  -> add
+        ALUResult = readData1 + readData2;
+        printf(" ALU = %d\n", ALUResult);
         break;
+
     case 3: // mult(24)
 
         break;
@@ -303,7 +284,8 @@ void execute() {
 
         break;
     case 6: // bnez(5), bne(5), beqz(4), b(4) -> sub
-
+        ALUResult = readData1 - readData2;
+        printf(" ALU = %d\n", ALUResult);
         break;
     case 7: // slti(35)
 
@@ -312,7 +294,6 @@ void execute() {
 
     default: break;
     }
-    printf("\n");
 }
 
 void memoryAccess() {
@@ -320,7 +301,8 @@ void memoryAccess() {
         printf("\t[Memory Access] Load, Address: , Value: \n");
     }
     else if (MemWrite == 1) { // store일 때만 1
-        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %d\n", ALUResult, Register[rt]);
+        memory[ALUResult] = Register[readData1];
+        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %d\n", ALUResult, Register[readData1]);
     }
     else {
         printf("\t[Memory Access] Pass\n");
@@ -333,18 +315,19 @@ void writeBack() {
         printf(" target: %s, Value: 0x%08x", defineRegisterName(rt), Register[rt]);
     }
 
-    if (RegWrite == 1) { //addu mult mflo lw addiu slti : 1
+    if (RegWrite == 1) { //move addu mult mflo lw addiu slti : 1
         printf(" TODO");
-        switch (opcode)
-        {
-        case 9: // addiu
-            Register[rt] = ALUResult;
-            printf(" Target: %s, Value: %d / ", defineRegisterName(rt), ALUResult);
-            break;
-
-        default:
-            break;
+        if (RegDst == 1) {
+            Register[rd] = ALUResult;
+            printf(" Target: %s, Value: %d / ", defineRegisterName(rd), ALUResult);
         }
+        else {
+            Register[rs] = ALUResult;
+            printf(" Target: %s, Value: %d / ", defineRegisterName(rs), ALUResult);
+        }
+
+
+
     }
 }
 
