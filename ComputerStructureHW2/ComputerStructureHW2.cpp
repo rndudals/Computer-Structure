@@ -37,6 +37,9 @@ int ALUResult;  // ALU 연산 결과
 int readData1;
 int readData2;
 
+int R_type_cnt;
+int J_type_cnt;
+int I_type_cnt;
 
 char* defineRegisterName(int n) {
     switch (n) {
@@ -74,6 +77,8 @@ void printBinary(unsigned int num) {
 
 
 void parseRType(uint32_t instruction) {
+    R_type_cnt++;
+
     opcode = (instruction >> 26) & 0x3F; // opcode 추출
     rs = (instruction >> 21) & 0x1F;     // rs 추출
     rt = (instruction >> 16) & 0x1F;     // rt 추출
@@ -116,6 +121,8 @@ void parseRType(uint32_t instruction) {
 
 
 void parseJType(uint32_t instruction) {
+    J_type_cnt++;
+
     opcode = (instruction >> 26) & 0x3F; // opcode 추출
     J_address = instruction & 0x03FFFFFF; // 주소 추출
     printf("Inst: jal: 0x%08x\n", J_address);
@@ -129,6 +136,8 @@ void parseJType(uint32_t instruction) {
 
 
 void parseIType(uint32_t instruction) {
+    I_type_cnt++;
+
     opcode = (instruction >> 26) & 0x3F; // opcode 추출 (26-31비트, 총 6비트)
     rs = (instruction >> 21) & 0x1F;     // rs 추출 (21-25비트, 총 5비트)
     rt = (instruction >> 16) & 0x1F;     // rt 추출 (16-20비트, 총 5비트)
@@ -352,6 +361,8 @@ void possibleJump() {
             pc = pc + 4 * immediate;
             /* code */
             break;
+        case 0: // jr
+            pc = Register[31];
         default:
             break;
         }
@@ -364,6 +375,7 @@ void possibleJump() {
 
 void init() {
     Register[29] = 16777216; // sp = 0x1000000로 시작
+    Register[31] = 0xffffffff;
 }
 
 
@@ -390,13 +402,19 @@ void run() {
         writeBack();
 
         possibleJump();
-        printf("\ttest : %d %d\n", 30, Register[30]);
-        printf("[cur_instruction] : %s", cur_instruction);
+
+        if (pc == 0xffffffff) { break; }
         printf("\n");
         printf("\n");
-        if (test == 70) break;
-        //test++;
+        //if (test == 70) break;
+        test++;
     }
+}
+
+void answer() {
+    printf("32190192> Final Result\n");
+    printf("\tCycles: %d, R-type instructions: %d, I-type instructions: %d, J-type instructions: %d\n", cycle, R_type_cnt, I_type_cnt, J_type_cnt);
+    printf("\tReturn value (v0) : %d\n", Register[2]);
 }
 
 int main(int argc, char* argv[]) {
@@ -414,6 +432,7 @@ int main(int argc, char* argv[]) {
     parseData(fp);
 
     run();
+    answer();
 
     fclose(fp);
     return 0;
