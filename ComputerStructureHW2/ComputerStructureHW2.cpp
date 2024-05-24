@@ -41,6 +41,9 @@ int R_type_cnt;
 int J_type_cnt;
 int I_type_cnt;
 
+// 추가된 레지스터 변수
+uint64_t HI = 0, LO = 0;
+
 char* defineRegisterName(int n) {
     switch (n) {
     case 0: return "zero"; case 1: return "at"; case 2: return "v0"; case 3: return "v1"; case 4: return "a0"; case 5: return "a1"; case 6: return "a2";
@@ -167,7 +170,6 @@ void parseIType(uint32_t instruction) {
         RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
         if (rt == 0) {
             printf("Inst: %s %s %d\n", "bnez", defineRegisterName(rs), immediate);
-            if (Register[rs] == 0) { PCSrc = 0; }
         }
         else {
             printf("Inst: %s %s %s %d\n", "bne", defineRegisterName(rs), defineRegisterName(rt), immediate);
@@ -290,10 +292,14 @@ void execute() {
         break;
 
     case 3: // mult(24)
-
+        uint64_t product = (int64_t)readData1 * (int64_t)readData2;
+        LO = (uint32_t)(product & 0xFFFFFFFF);
+        HI = (uint32_t)(product >> 32);
+        printf(" mult result: LO=%lu, HI=%lu\n", LO, HI);
         break;
     case 4: // mflo(18)
-
+        ALUResult = LO;
+        printf(" mflo result: %u\n", ALUResult);
         break;
     case 6: // bnez(5), bne(5), beqz(4), b(4) -> sub
         if (opcode == 5) {
