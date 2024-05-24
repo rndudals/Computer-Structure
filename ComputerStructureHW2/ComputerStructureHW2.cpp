@@ -8,7 +8,7 @@ int data_row;
 char data[100][33]; // 이진 문자열을 저장하는 배열
 int pc = 0;
 char* cur_instruction; // 현재 instruction
-int Register[32];
+uint32_t Register[32];
 
 
 uint32_t opcode;
@@ -125,10 +125,10 @@ void parseJType(uint32_t instruction) {
 
     opcode = (instruction >> 26) & 0x3F; // opcode 추출
     J_address = instruction & 0x03FFFFFF; // 주소 추출
-    printf("Inst: jal: 0x%08x\n", J_address);
-    printf("\t\topcode: %d, address: %08x\n", opcode, J_address);
+    printf("Inst: jal: %d\n", J_address);
+    printf("\t\topcode: %d, address: %d\n", opcode, J_address);
 
-    int RegDst = 0; int RegWrite = 1; int ALUSrc = 0; int PCSrc = 1; int MemRead = 0; int MemWrite = 0; int MemtoReg = 0; int ALUOp = 0;
+    RegDst = 0; RegWrite = 1; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 0;
 
     printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
         RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
@@ -296,9 +296,20 @@ void execute() {
 
         break;
     case 6: // bnez(5), bne(5), beqz(4), b(4) -> sub
-        ALUResult = readData1 - readData2;
-        printf(" ALU = %d\n", ALUResult);
-        break;
+        if (opcode == 5) {
+            ALUResult = readData1 - readData2;
+            printf(" ALU = %d", ALUResult);
+            if (ALUResult == 0) {
+                PCSrc = 0;
+            }
+            break;
+        }
+        else {
+            ALUResult = readData1 - readData2;
+            printf(" ALU = %d", ALUResult);
+            break;
+        }
+
     case 7: // slti(35)
         if (readData1 < readData2) {
             ALUResult = 1;
@@ -306,11 +317,13 @@ void execute() {
         else {
             ALUResult = 0;
         }
-        printf(" ALU = %d\n", ALUResult);
+        printf(" ALU = %d", ALUResult);
         break;
-
-    default: break;
+    default:
+        printf(" Pass");
+        break;
     }
+    printf("\n");
 }
 
 void memoryAccess() {
@@ -320,7 +333,7 @@ void memoryAccess() {
     }
     else if (MemWrite == 1) { // store일 때만 1
         memory[ALUResult] = Register[rt];
-        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %d\n", ALUResult, Register[rt]);
+        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %u\n", ALUResult, memory[ALUResult]);
     }
     else {
         printf("\t[Memory Access] Pass\n");
@@ -331,14 +344,18 @@ void writeBack() {
     printf("\t[Write Back]");
 
     if (RegWrite == 1 && MemtoReg != 1) { //move addu mult mflo lw addiu slti : 1
-        printf(" TODO");
+        if (opcode == 3) { // jal일 때
+            Register[31] = pc;
+            return;
+        }
+
         if (RegDst == 1) {
             Register[rd] = ALUResult;
             printf(" Target: %s, Value: %d /", defineRegisterName(rd), ALUResult);
         }
         else {
-            Register[rs] = ALUResult;
-            printf(" Target: %s, Value: %d /", defineRegisterName(rs), ALUResult);
+            Register[rt] = ALUResult;
+            printf(" Target: %s, Value: %d /", defineRegisterName(rt), ALUResult);
         }
     }
 
@@ -363,6 +380,10 @@ void possibleJump() {
             break;
         case 0: // jr
             pc = Register[31];
+            break;
+        case 3: // jal
+            pc = 4 * J_address;
+            break;
         default:
             break;
         }
@@ -371,6 +392,7 @@ void possibleJump() {
     else {
         printf(" newPC: 0x%08x\n", pc);
     }
+
 }
 
 void init() {
@@ -406,8 +428,11 @@ void run() {
         if (pc == 0xffffffff) { break; }
         printf("\n");
         printf("\n");
-        //if (test == 70) break;
+        printf("Register[31] : %d\n", Register[31]);
+        printf("pc : %d\n", pc);
+        //if (test == 150) break;
         test++;
+
     }
 }
 
