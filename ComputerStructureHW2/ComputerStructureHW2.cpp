@@ -307,6 +307,9 @@ void execute() {
         else {
             ALUResult = readData1 - readData2;
             printf(" ALU = %d", ALUResult);
+            if (ALUResult != 0) {
+                PCSrc = 0;
+            }
             break;
         }
 
@@ -428,9 +431,7 @@ void run() {
         if (pc == 0xffffffff) { break; }
         printf("\n");
         printf("\n");
-        printf("Register[31] : %d\n", Register[31]);
-        printf("pc : %d\n", pc);
-        //if (test == 150) break;
+        //if (test == 200) break;
         test++;
 
     }
