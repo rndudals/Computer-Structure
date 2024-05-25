@@ -3,46 +3,48 @@
 #include <string.h>
 #include <stdint.h>
 
-int cycle = 0;
-int data_row;
-char data[100][33]; // 이진 문자열을 저장하는 배열
-int pc = 0;
-char* cur_instruction; // 현재 instruction
-uint32_t Register[32];
+int cycle = 0; // 프로그램 실행 중 사이클 수를 추적
+int data_row; // MIPS 명령어 데이터 배열의 행 수
+char data[100][33]; // 이진 문자열로 표현된 MIPS 명령어를 저장하는 배열
+int pc = 0; // 프로그램 카운터, 현재 실행 중인 명령어의 위치를 가리킴
+char* cur_instruction; // 현재 실행 중인 명령어의 이진 문자열
+
+uint32_t Register[32]; // MIPS 아키텍처의 32개 레지스터
+
+uint32_t opcode; // 명령어의 연산 코드 필드
+uint32_t rs; // 명령어의 첫 번째 소스 레지스터
+uint32_t rt; // 명령어의 두 번째 소스 레지스터 또는 대상 레지스터
+uint32_t rd; // 명령어의 대상 레지스터 (R-type 명령어)
+uint32_t shamt; // 명령어의 쉬프트 양 (shift amount)
+uint32_t funct; // R-type 명령어의 기능 코드
+
+uint32_t J_address; // J-type 명령어의 점프 주소
+uint32_t memory[16777217]; // MIPS 시뮬레이터의 가상 메모리 공간
+int16_t immediate; // I-type 명령어의 즉시 값
+
+int RegDst; // 목적지 레지스터 결정 신호 (0: rt, 1: rd)
+int RegWrite; // 레지스터 쓰기 활성화 신호
+int ALUSrc; // ALU 소스 결정 신호 (0: 레지스터, 1: 즉시 값)
+int PCSrc; // PC 소스 결정 신호 (0: 기본, 1: 분기/점프)
+int MemRead; // 메모리 읽기 활성화 신호
+int MemWrite; // 메모리 쓰기 활성화 신호
+int MemtoReg; // 메모리-레지스터 결정 신호 (0: ALU 결과, 1: 메모리 읽기 결과)
+int ALUOp; // ALU 연산 결정 신호 (연산 유형 코드)
+
+int ALUResult; // ALU 연산 결과
+
+int readData1; // 첫 번째 레지스터에서 읽은 데이터
+int readData2; // 두 번째 레지스터에서 읽은 데이터
+
+int R_type_cnt; // 실행된 R-type 명령어의 개수
+int J_type_cnt; // 실행된 J-type 명령어의 개수
+int I_type_cnt; // 실행된 I-type 명령어의 개수
+
+// 곱셈 연산의 고정밀 결과를 저장하기 위한 레지스터
+uint64_t HI = 0; // 곱셈 결과의 상위 32비트 저장
+uint64_t LO = 0; // 곱셈 결과의 하위 32비트 저장
 
 
-uint32_t opcode;
-uint32_t rs;
-uint32_t rt;
-uint32_t rd;
-uint32_t shamt;
-uint32_t funct;
-
-uint32_t J_address;
-uint32_t memory[16777217];
-int16_t immediate;
-
-int RegDst;     // RegDst 신호에 대한 변수
-int RegWrite;   // RegWrite 신호에 대한 변수
-int ALUSrc;     // ALUSrc 신호에 대한 변수
-int PCSrc;      // PCSrc 신호에 대한 변수
-int MemRead;    // MemRead 신호에 대한 변수
-int MemWrite;   // MemWrite 신호에 대한 변수
-int MemtoReg;   // MemtoReg 신호에 대한 변수
-int ALUOp;      // ALUOp 신호에 대한 변수
-
-int ALUResult;  // ALU 연산 결과
-
-
-int readData1;
-int readData2;
-
-int R_type_cnt;
-int J_type_cnt;
-int I_type_cnt;
-
-// 추가된 레지스터 변수
-uint64_t HI = 0, LO = 0;
 
 char* defineRegisterName(int n) {
     switch (n) {
@@ -79,106 +81,137 @@ void printBinary(unsigned int num) {
 }
 
 
+// 제어 신호를 설정하는 함수
+// 이 함수는 파싱된 명령어에 따라 CPU의 제어 신호를 설정합니다.
+void setControlSignals(int regDst, int regWrite, int aluSrc, int pcSrc, int memRead, int memWrite, int memToReg, int aluOp) {
+    RegDst = regDst;         // 레지스터 대상 결정
+    RegWrite = regWrite;     // 레지스터 쓰기 활성화
+    ALUSrc = aluSrc;         // ALU 입력 선택
+    PCSrc = pcSrc;           // 프로그램 카운터 소스 선택
+    MemRead = memRead;       // 메모리 읽기 활성화
+    MemWrite = memWrite;     // 메모리 쓰기 활성화
+    MemtoReg = memToReg;     // 메모리-레지스터 선택
+    ALUOp = aluOp;           // ALU 연산 유형 선택
+}
+
+
+// RType 명령어를 파싱하고 실행 관련 제어 신호를 설정하는 함수입니다.
 void parseRType(uint32_t instruction) {
-    R_type_cnt++;
+    R_type_cnt++;  // 파싱된 R-type 명령어의 수를 증가시킵니다.
 
-    opcode = (instruction >> 26) & 0x3F; // opcode 추출
-    rs = (instruction >> 21) & 0x1F;     // rs 추출
-    rt = (instruction >> 16) & 0x1F;     // rt 추출
-    rd = (instruction >> 11) & 0x1F;     // rd 추출
-    shamt = (instruction >> 6) & 0x1F;   // shamt 추출
-    funct = instruction & 0x3F;          // funct 추출
+    // 명령어에서 각 필드를 추출합니다.
+    opcode = (instruction >> 26) & 0x3F;
+    rs = (instruction >> 21) & 0x1F;
+    rt = (instruction >> 16) & 0x1F;
+    rd = (instruction >> 11) & 0x1F;
+    shamt = (instruction >> 6) & 0x1F;
+    funct = instruction & 0x3F;
 
-
+    // funct 필드에 따라 다른 연산을 수행합니다.
     switch (funct) {
     case 37: // move
     case 33: // addu
+        // 해당 명령어 정보를 출력합니다.
         printf("Inst: %s %s %s %s\n", "addu", defineRegisterName(rd), defineRegisterName(rs), defineRegisterName(rt));
         printf("\t\topcode: %d, rd: %d (%d), rs: %d (%d), rt: %d (%d)\n", opcode, rd, Register[rd], rs, Register[rs], rt, Register[rt]);
-        RegDst = 1; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
+        // 제어 신호를 설정합니다.
+        setControlSignals(1, 1, 0, 0, 0, 0, 0, 2);
         break;
     case 24: // mult
+        // mult 명령어 정보를 출력합니다.
         printf("Inst: %s %s %s\n", "mult", defineRegisterName(rs), defineRegisterName(rt));
         printf("\t\topcode: %d, rs: %d (%d), rt: %d (%d)\n", opcode, rs, Register[rs], rt, Register[rt]);
-        RegDst = 0; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 3;
+        setControlSignals(0, 1, 0, 0, 0, 0, 0, 3);
         break;
     case 18: // mflo
+        // mflo 명령어 정보를 출력합니다.
         printf("Inst: %s %s\n", "mflo", defineRegisterName(rd));
         printf("\t\topcode: %d, rd: %d (%d)\n", opcode, rd, Register[rd]);
-        RegDst = 1; RegWrite = 1; ALUSrc = 0; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 4;
+        setControlSignals(1, 1, 0, 0, 0, 0, 0, 4);
         break;
     case 8: // jr
+        // jr 명령어 정보를 출력합니다.
         printf("Inst: %s %s\n", "jr", defineRegisterName(rs));
         printf("\t\topcode: %d, rs: %d (%d)\n", opcode, rs, Register[rs]);
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 0;
+        setControlSignals(0, 0, 0, 1, 0, 0, 0, 0);
         break;
     default:
-        RegDst = RegWrite = ALUSrc = PCSrc = MemRead = MemWrite = MemtoReg = ALUOp = 0;
+        // 알 수 없는 함수 코드 처리
         printf("\t\topcode: %d, Unknown funct %02d\n", opcode, funct);
+        setControlSignals(0, 0, 0, 0, 0, 0, 0, 0);
         break;
     }
-
     printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
         RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
 }
 
-
+// JType 명령어를 파싱하는 함수입니다.
 void parseJType(uint32_t instruction) {
-    J_type_cnt++;
+    J_type_cnt++;  // 파싱된 J-type 명령어의 수를 증가시킵니다.
 
-    opcode = (instruction >> 26) & 0x3F; // opcode 추출
-    J_address = instruction & 0x03FFFFFF; // 주소 추출
+    // 명령어에서 opcode와 점프 주소를 추출합니다.
+    opcode = (instruction >> 26) & 0x3F;
+    J_address = instruction & 0x03FFFFFF;
+    // 명령어 정보를 출력합니다.
     printf("Inst: jal: %d\n", J_address);
     printf("\t\topcode: %d, address: %d\n", opcode, J_address);
 
-    RegDst = 0; RegWrite = 1; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 0;
-
+    // 제어 신호를 설정합니다.
+    setControlSignals(0, 1, 0, 1, 0, 0, 0, 0);
     printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
         RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
 }
 
-
+// IType 명령어를 파싱하는 함수입니다.
 void parseIType(uint32_t instruction) {
-    I_type_cnt++;
+    I_type_cnt++;  // 파싱된 I-type 명령어의 수를 증가시킵니다.
 
-    opcode = (instruction >> 26) & 0x3F; // opcode 추출 (26-31비트, 총 6비트)
-    rs = (instruction >> 21) & 0x1F;     // rs 추출 (21-25비트, 총 5비트)
-    rt = (instruction >> 16) & 0x1F;     // rt 추출 (16-20비트, 총 5비트)
-    immediate = (int16_t)(instruction & 0xFFFF); // Immediate 추출 (0-15비트, 총 16비트, 부호 확장 고려)
+    // 명령어에서 opcode, rs, rt, immediate를 추출합니다.
+    opcode = (instruction >> 26) & 0x3F;
+    rs = (instruction >> 21) & 0x1F;
+    rt = (instruction >> 16) & 0x1F;
+    immediate = (int16_t)(instruction & 0xFFFF);
+
+    // opcode에 따라 다른 연산을 수행합니다.
     switch (opcode) {
-    case 9:
+    case 9: // addiu
+        // addiu 명령어 정보를 출력합니다.
         printf("Inst: %s %s %s %d\n", "addiu", defineRegisterName(rt), defineRegisterName(rs), immediate);
         printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-        RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 2;
+        setControlSignals(0, 1, 1, 0, 0, 0, 0, 2);
         break;
     case 43: // sw
+        // sw 명령어 정보를 출력합니다.
         printf("Inst: %s %s %d(%s)\n", "sw", defineRegisterName(rt), immediate, defineRegisterName(rs));
         printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-        RegDst = 0; RegWrite = 0; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 1; MemtoReg = 0; ALUOp = 2;
+        setControlSignals(0, 0, 1, 0, 0, 1, 0, 2);
         break;
     case 35: // lw
+        // lw 명령어 정보를 출력합니다.
         printf("Inst: %s %s %d(%s)\n", "lw", defineRegisterName(rt), immediate, defineRegisterName(rs));
         printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-        RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 1; MemWrite = 0; MemtoReg = 1; ALUOp = 2;
+        setControlSignals(0, 1, 1, 0, 1, 0, 1, 2);
         break;
     case 10: // slti
+        // slti 명령어 정보를 출력합니다.
         printf("Inst: %s %s %s %d\n", "slti", defineRegisterName(rt), defineRegisterName(rs), immediate);
         printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-        RegDst = 0; RegWrite = 1; ALUSrc = 1; PCSrc = 0; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 7; // SLTI specific operation code
+        setControlSignals(0, 1, 1, 0, 0, 0, 0, 7);
         break;
     case 5: // bnez or bne
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
+        // bne 명령어 정보를 출력합니다.
         if (rt == 0) {
             printf("Inst: %s %s %d\n", "bnez", defineRegisterName(rs), immediate);
+            printf("\t\topcode: %d, rs: %d (%d), imm: %d\n", opcode, rs, Register[rs], immediate);
         }
         else {
             printf("Inst: %s %s %s %d\n", "bne", defineRegisterName(rs), defineRegisterName(rt), immediate);
+            printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
         }
-        printf("\t\topcode: %d, rt: %d (%x), rs: %d (%x), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-
-
+        setControlSignals(0, 0, 0, 1, 0, 0, 0, 6);
         break;
     case 4: // b or beqz
+        // b beqz 명령어 정보를 출력합니다.
         if (rt == 0) {
             printf("Inst: %s %d\n", "b", immediate);
         }
@@ -186,37 +219,43 @@ void parseIType(uint32_t instruction) {
             printf("Inst: %s %s %d\n", "beqz", defineRegisterName(rs), immediate);
         }
         printf("\t\topcode: %d, rt: %d (%d), rs: %d (%d), imm: %d\n", opcode, rt, Register[rt], rs, Register[rs], immediate);
-        RegDst = 0; RegWrite = 0; ALUSrc = 0; PCSrc = 1; MemRead = 0; MemWrite = 0; MemtoReg = 0; ALUOp = 6; // Branch specific operation
+        setControlSignals(0, 0, 0, 1, 0, 0, 0, 6);
         break;
     default:
+        // 알 수 없는 opcode 처리
+        setControlSignals(0, 0, 0, 0, 0, 0, 0, 0);
         break;
     }
     printf("\t\tRegDst: %d, RegWrite: %d, ALUSrc: %d, PCSrc: %d, MemRead: %d, MemWrite: %d, MemtoReg: %d, ALUOp: %d\n",
         RegDst, RegWrite, ALUSrc, PCSrc, MemRead, MemWrite, MemtoReg, ALUOp);
 }
 
-// 명령어 타입을 판별하고 출력하는 함수
-char classifyInstruction(uint32_t instruction) {
-    char ret;
-    uint32_t opcode = instruction >> 26; // 상위 6비트 추출
-    int R_funct = instruction & 0x3F;          // funct 추출
-    if (opcode == 0) {
 
-        int isNop = instruction & 0x3F;          // NOP 예외처리
+
+// 명령어 타입을 판별하고 반환하는 함수입니다.
+// 이 함수는 명령어의 opcode를 분석하여 R, I, J 타입 중 하나를 결정하고 해당 타입 문자를 반환합니다.
+char classifyInstruction(uint32_t instruction) {
+    char ret = '?';  // 반환할 명령어 타입을 저장할 변수
+    uint32_t opcode = instruction >> 26; // 명령어에서 상위 6비트를 추출하여 opcode를 얻습니다.
+    int R_funct = instruction & 0x3F;    // R-type 명령어의 경우, 하위 6비트를 funct 필드로 사용합니다.
+
+    if (opcode == 0) {
+        int isNop = instruction & 0x3F;  // NOP 명령어는 funct 필드가 0이고 opcode도 0인 특수 경우입니다.
         if (isNop == 0) {
-            return 'N';
+            return 'N';  // NOP 명령어일 경우 'N'을 반환합니다.
         }
 
-        ret = 'R';
+        ret = 'R';  // opcode가 0이면 R-type 명령어입니다.
     }
     else if (opcode == 0x2 || opcode == 0x3) {
-        ret = 'J';
+        ret = 'J';  // opcode가 0x2 또는 0x3인 경우 J-type 명령어입니다.
     }
     else {
-        ret = 'I';
+        ret = 'I';  // 그 외의 경우는 I-type 명령어로 분류합니다.
     }
-    return ret;
+    return ret;  // 결정된 명령어 타입을 반환합니다.
 }
+
 
 void parseData(FILE* fp) {
     unsigned char buffer[4];
@@ -238,26 +277,28 @@ void parseData(FILE* fp) {
     data_row = row;
 }
 
+// 명령어 인출 단계 처리 함수
 int instructionFetch() {
-    printf("32190192> Cycle: %d\n", ++cycle);
-    printf("\t[Instruction Fetch] 0x%s  (PC=0x%08x)\n", binaryToHexLower(data[pc / 4]), pc);
+    printf("32190192> Cycle: %d\n", ++cycle); // 사이클 수 증가 및 출력
+    printf("\t[Instruction Fetch] 0x%s  (PC=0x%08x)\n", binaryToHexLower(data[pc / 4]), pc); // 현재 PC의 명령어를 16진수로 출력
 
-    // 현재 instruction 저장 
-    cur_instruction = data[pc / 4];
-    pc = pc + 4;
-    return pc / 4;
+    cur_instruction = data[pc / 4]; // 현재 명령어를 cur_instruction에 저장
+    pc = pc + 4; // PC를 다음 명령어로 이동
+    return pc / 4; // 다음 명령어의 인덱스 반환
 }
 
 int instructionDecode() {
 
-    char type = classifyInstruction(binaryToUint32(cur_instruction)); // 명령어 타입 분류
+    char type = classifyInstruction(binaryToUint32(cur_instruction));
     if (type == 'N') {
-        printf("\t[Instruction Decode] NOP!!!");
+        printf("\t[Instruction Decode] NOP!!!\n");
         return 1;
     }
-    else {
-        printf("\t[Instruction Decode] Type: %c, ", type);
+    else if (type == '?') {  // 잘못된 명령어 타입을 식별
+        printf("\t[Instruction Decode] Unknown instruction type\n");
+        return 1;
     }
+    printf("\t[Instruction Decode] Type: %c, ", type);
 
 
     if (type == 'R') {
@@ -284,28 +325,28 @@ void execute() {
 
     switch (ALUOp) {
     case 0: // jr(8), jal(3) -> and 
-
+        printf(" Pass");
         break;
     case 2: // move(37) addu(33), addiu(9), sw(43), lw(35)  -> add
         ALUResult = readData1 + readData2;
-        printf(" ALU = %d\n", ALUResult);
+        printf(" ALU = %d", ALUResult);
         break;
 
     case 3: // mult(24)
         uint64_t product = (int64_t)readData1 * (int64_t)readData2;
         LO = (uint32_t)(product & 0xFFFFFFFF);
         HI = (uint32_t)(product >> 32);
-        printf(" mult result: LO=%lu, HI=%lu\n", LO, HI);
+        printf(" mult result: LO=%lu, HI=%lu", LO, HI);
         break;
     case 4: // mflo(18)
         ALUResult = LO;
-        printf(" mflo result: %u\n", ALUResult);
+        printf(" mflo result: %u", ALUResult);
         break;
     case 6: // bnez(5), bne(5), beqz(4), b(4) -> sub
         if (opcode == 5) {
             ALUResult = readData1 - readData2;
             printf(" ALU = %d", ALUResult);
-            if (ALUResult == 0) {
+            if (ALUResult == 0) { // 0이면 두값이 같으므로 분기 x
                 PCSrc = 0;
             }
             break;
@@ -313,19 +354,14 @@ void execute() {
         else {
             ALUResult = readData1 - readData2;
             printf(" ALU = %d", ALUResult);
-            if (ALUResult != 0) {
+            if (ALUResult != 0) { // 0이 아니면 두 값이 다르므로 분기 x
                 PCSrc = 0;
             }
             break;
         }
 
     case 7: // slti(35)
-        if (readData1 < readData2) {
-            ALUResult = 1;
-        }
-        else {
-            ALUResult = 0;
-        }
+        ALUResult = (readData1 < readData2) ? 1 : 0; // 비교 결과에 따라 1 또는 0 설정
         printf(" ALU = %d", ALUResult);
         break;
     default:
@@ -335,137 +371,171 @@ void execute() {
     printf("\n");
 }
 
+// 메모리 접근 단계 처리 함수
 void memoryAccess() {
-    if (MemRead == 1) { // load일 때만 1
-        Register[rt] = memory[ALUResult];
-        printf("\t[Memory Access] Load, Address: 0x%08x, Value: %d\n", ALUResult, Register[rt]);
-    }
-    else if (MemWrite == 1) { // store일 때만 1
-        memory[ALUResult] = Register[rt];
-        printf("\t[Memory Access] Store, Address: 0x%08x, Value: %u\n", ALUResult, memory[ALUResult]);
+    if (ALUResult >= 0 && ALUResult < sizeof(memory) / sizeof(memory[0])) {
+        if (MemRead == 1) { // 메모리 읽기 활성화인 경우
+            Register[rt] = memory[ALUResult]; // 메모리에서 rt 레지스터로 데이터 로드
+            printf("\t[Memory Access] Load, Address: 0x%08x, Value: %d\n", ALUResult, Register[rt]);
+        }
+        else if (MemWrite == 1) { // 메모리 쓰기 활성화인 경우
+            memory[ALUResult] = Register[rt]; // rt 레지스터에서 메모리로 데이터 저장
+            printf("\t[Memory Access] Store, Address: 0x%08x, Value: %u\n", ALUResult, memory[ALUResult]);
+        }
+        else {
+            printf("\t[Memory Access] Pass\n"); // 메모리 작업 없음
+        }
     }
     else {
-        printf("\t[Memory Access] Pass\n");
+        printf("\t[Memory Access] Invalid memory access\n");
     }
 }
 
+// 레지스터에 결과 값을 되돌리는 쓰기 단계를 수행하는 함수
 void writeBack() {
     printf("\t[Write Back]");
 
-    if (RegWrite == 1 && MemtoReg != 1) { //move addu mult mflo lw addiu slti : 1
-        if (opcode == 3) { // jal일 때
+    // RegWrite 신호가 활성화되어 있고, 결과가 메모리에서 오지 않을 때 실행
+    if (RegWrite == 1 && MemtoReg != 1) { // 레지스터 쓰기가 허용되고 메모리로부터의 값이 아닌 경우
+        if (opcode == 3) { // opcode가 3 (jal 명령어)일 때, RA 레지스터 (31)에 PC 값 저장
             Register[31] = pc;
-            return;
+            return; // 함수 종료
         }
 
-        if (RegDst == 1) {
-            Register[rd] = ALUResult;
+        // RegDst 신호에 따라 결과 값을 적절한 레지스터에 할당
+        if (RegDst == 1) { // 목적지 레지스터가 rd인 경우
+            Register[rd] = ALUResult; // rd 레지스터에 ALU 결과 저장
             printf(" Target: %s, Value: %d /", defineRegisterName(rd), ALUResult);
         }
-        else {
-            Register[rt] = ALUResult;
+        else { // 목적지 레지스터가 rt인 경우
+            Register[rt] = ALUResult; // rt 레지스터에 ALU 결과 저장
             printf(" Target: %s, Value: %d /", defineRegisterName(rt), ALUResult);
         }
     }
 
-    if (MemtoReg == 1) { // load일 때만 1
-        Register[rt] = memory[ALUResult];
+    // MemtoReg 신호가 활성화된 경우, 메모리로부터 읽은 값을 레지스터에 쓰기
+    if (MemtoReg == 1) { // 메모리에서 읽은 결과가 레지스터에 쓰여야 하는 경우
+        Register[rt] = memory[ALUResult]; // 메모리에서 읽은 값을 rt 레지스터에 저장
         printf(" target: %s, Value: %d /", defineRegisterName(rt), memory[ALUResult]);
     }
 }
 
+
+// 프로그램 카운터(PC)를 업데이트하여 가능한 점프를 처리하는 함수
 void possibleJump() {
-    if (PCSrc == 1) {
-        // PC
-        switch (opcode)
-        {
-        case 4: // beqz(4), b(4)
-            pc = pc + 4 * immediate;
+    if (PCSrc == 1) { // PCSrc 신호가 1이면 점프 실행
+        // opcode에 따라 다른 점프 동작 수행
+        switch (opcode) {
+        case 4: // beqz(4), b(4): 조건부 분기 (zero 조건) 또는 무조건적 분기
+            pc = pc + 4 * immediate; // 현재 위치에서 상대 주소만큼 점프
             break;
 
-        case 5: // bnez(5), bne(5)
-            pc = pc + 4 * immediate;
-            /* code */
+        case 5: // bnez(5), bne(5): 조건부 분기 (not zero 조건)
+            pc = pc + 4 * immediate; // 현재 위치에서 상대 주소만큼 점프
             break;
-        case 0: // jr
-            pc = Register[31];
+
+        case 0: // jr: 레지스터에 저장된 주소로 점프
+            pc = Register[31]; // ra 레지스터(31번)에 저장된 주소로 점프
             break;
-        case 3: // jal
-            pc = 4 * J_address;
+
+        case 3: // jal: 점프하고 링크
+            pc = 4 * J_address; // 절대 주소 위치로 점프 (주소는 명령어에서 추출)
             break;
-        default:
+
+        default: // 그 외 경우는 점프 없음
             break;
         }
-        printf(" newPC: 0x%08x\n", pc);
+        printf(" newPC: 0x%08x\n", pc); // 새로운 PC 값 출력
     }
     else {
-        printf(" newPC: 0x%08x\n", pc);
+        printf(" newPC: 0x%08x\n", pc); // 변경 없는 경우 현재 PC 출력
     }
-
 }
+
 
 void init() {
     Register[29] = 16777216; // sp = 0x1000000로 시작
-    Register[31] = 0xffffffff;
+    Register[31] = 0xffffffff; // sp = 0xffffffff로 시작
 }
 
-
+// 시뮬레이션을 실행하는 주 함수
 void run() {
-    init();
-    int test = 0;
-    while (1) {
+    init(); // 초기화 함수 호출로 레지스터 및 메모리 초기화
+    int loopCounter = 0;  // 무한 루프 감지를 위한 카운터
+
+    while (1) { // 무한 루프로 명령어 실행
+        loopCounter++;
+        if (loopCounter > 1000000) {  // 1000,000 사이클이 넘어가면 루프 감지
+            printf("Infinite loop detected, stopping the simulation\n");
+            break;
+        }
+
         printf("\n");
         printf("\n");
-        // 1. Instruction Fetch
-        int next_row = instructionFetch();
-        if (next_row > data_row) break;
 
-        // 2. Instruction Decode
-        if (instructionDecode()) { continue; }
+        // 1. Instruction Fetch: 명령어 인출 단계
+        int next_row = instructionFetch(); // 현재 PC의 명령어를 인출
+        if (next_row > data_row) break; // 데이터 행을 초과하면 루프 종료
 
-        // 3. Excute
-        execute();
+        // 2. Instruction Decode: 명령어 디코드 단계
+        if (instructionDecode()) { // 명령어 디코드 실행, NOP 등의 처리 확인
+            continue; // NOP이면 루프의 다음 반복으로 넘어감
+        }
 
-        // 4. Memory Access
-        memoryAccess();
+        // 3. Execute: 실행 단계
+        execute(); // ALU 연산 및 분기 결정 수행
 
-        // 5. Write Back  
-        writeBack();
+        // 4. Memory Access: 메모리 접근 단계
+        memoryAccess(); // 메모리 읽기 또는 쓰기 작업 수행
 
-        possibleJump();
+        // 5. Write Back: 결과 쓰기 단계
+        writeBack(); // 연산 결과를 레지스터에 저장
 
-        if (pc == 0xffffffff) { break; }
+        // 6. Possible Jump: 점프 처리
+        possibleJump(); // 조건에 따라 PC 업데이트
+
+        // 프로그램 종료 조건 체크
+        if (pc == 0xffffffff) { break; } // PC가 특정 값(종료 조건)에 도달하면 루프 종료
+
         printf("\n");
         printf("\n");
-        //if (test == 200) break;
-        test++;
-
     }
 }
 
+// 최종 답 출력 함수
 void answer() {
     printf("32190192> Final Result\n");
     printf("\tCycles: %d, R-type instructions: %d, I-type instructions: %d, J-type instructions: %d\n", cycle, R_type_cnt, I_type_cnt, J_type_cnt);
     printf("\tReturn value (v0) : %d\n", Register[2]);
 }
 
+// 메인 함수: 프로그램의 진입점
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        printf("Usage: %s <filename>\n", argv[0]);
-        return -1;
+    // 명령행 인수 확인
+    if (argc != 2) { // 사용자가 파일 이름을 입력하지 않았을 경우
+        printf("Usage: %s <filename>\n", argv[0]); // 사용법 안내
+        return -1; // 비정상 종료
     }
 
-    FILE* fp = fopen(argv[1], "rb");
-    if (fp == NULL) {
-        perror("Error opening file");
-        exit(0);
+    // 파일 열기 시도
+    FILE* fp = fopen(argv[1], "rb"); // 입력된 파일명으로 파일을 바이너리 읽기 모드로 열기
+    if (fp == NULL) { // 파일 열기 실패
+        perror("Error opening file"); // 에러 메시지 출력
+        exit(0); // 프로그램 종료
     }
 
-    parseData(fp);
+    // 데이터 파싱
+    parseData(fp); // 파일에서 데이터를 읽어 파싱
 
-    run();
-    answer();
+    // 시뮬레이션 실행
+    run(); // 명령어 실행
 
-    fclose(fp);
-    return 0;
+    // 결과 출력
+    answer(); // 최종 결과 출력
+
+    // 파일 닫기
+    fclose(fp); // 열린 파일 포인터를 닫음
+
+    return 0; // 정상 종료
 }
+
