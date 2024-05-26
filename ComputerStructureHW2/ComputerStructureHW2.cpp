@@ -401,7 +401,9 @@ void writeBack() {
             Register[31] = pc;
             return; // 함수 종료
         }
-
+        if (opcode == 0 && ALUOp == 3) { // mult일 때
+            return;
+        }
         // RegDst 신호에 따라 결과 값을 적절한 레지스터에 할당
         if (RegDst == 1) { // 목적지 레지스터가 rd인 경우
             Register[rd] = ALUResult; // rd 레지스터에 ALU 결과 저장
@@ -436,10 +438,12 @@ void possibleJump() {
 
         case 0: // jr: 레지스터에 저장된 주소로 점프
             pc = Register[31]; // ra 레지스터(31번)에 저장된 주소로 점프
+
             break;
 
         case 3: // jal: 점프하고 링크
             pc = 4 * J_address; // 절대 주소 위치로 점프 (주소는 명령어에서 추출)
+            printf("pc를 ra로 update / ");
             break;
 
         default: // 그 외 경우는 점프 없음
