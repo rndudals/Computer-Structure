@@ -314,4 +314,393 @@ void forwarding() {
 int hazardDetection() {
     // Load-Use 데이터 위험 감지
     if (ID_EX.MemRead && ((ID_EX.rt == IF_ID.rs) || (ID_EX.rt == IF_ID.rt))) {
-        //
+        // 버블 삽입: IF/ID 파이프라인 레지스터를 정지하고, ID/EX 파이프라인 레지스터를 초기화
+        ID_EX.valid = 0;
+        return 1;
+    }
+    return 0;
+}
+
+// 명령어 인출 단계 처리 함수
+int instructionFetch() {
+    printf("32190192> Cycle: %d\n", ++cycle); // 사이클 수 증가 및 출력
+    printf("\t[Instruction Fetch] 0x%s (PC=0x%08x)\n", binaryToHexLower(data[pc / 4]), pc); // 현재 PC의 명령어를 16진수로 출력
+
+    IF_ID.pc = pc;
+    IF_ID.instruction = binaryToUint32(data[pc / 4]);
+    IF_ID.rs = (IF_ID.instruction >> 21) & 0x1F;
+    IF_ID.rt = (IF_ID.instruction >> 16) & 0x1F;
+    IF_ID.rd = (IF_ID.instruction >> 11) & 0x1F;
+    IF_ID.immediate = (int16_t)(IF_ID.instruction & 0xFFFF);
+    IF_ID.valid = 1;
+    pc = pc + 4; // PC를 다음 명령어로 이동
+    return pc / 4; // 다음 명령어의 인덱스 반환
+}
+
+int instructionDecode() {
+    if (!IF_ID.valid) return 1;
+
+    ID_EX.pc = IF_ID.pc;
+    ID_EX.instruction = IF_ID.instruction;
+    ID_EX.valid = 1;
+
+    uint32_t instruction = IF_ID.instruction;
+    char type = classifyInstruction(instruction);
+    if (type == 'N') {
+        printf("\t[Instruction Decode] NOP!!!\n");
+        return 1;
+    }
+    else if (type == '?') {
+        printf("\t[Instruction Decode] Unknown instruction type\n");
+        return 1;
+    }
+    printf("\t[Instruction Decode] Type: %c, ", type);
+
+    ID_EX.rs = (instruction >> 21) & 0x1F;
+    ID_EX.rt = (instruction >> 16) & 0x1F;
+    ID_EX.rd = (instruction >> 11) & 0x1F;
+    ID_EX.immediate = (int16_t)(instruction & 0xFFFF);
+
+    if (type == 'R') {
+        parseRType(instruction);
+    }
+    else if (type == 'J') {
+        parseJType(instruction);
+    }
+    else {
+        parseIType(instruction);
+    }
+
+    ID_EX.readData1 = Register[ID_EX.rs];
+    ID_EX.readData2 = Register[ID_EX.rt];
+    ID_EX.RegDst = RegDst;
+    ID_EX.RegWrite = RegWrite;
+    ID_EX.ALUSrc = ALUSrc;
+    ID_EX.PCSrc = PCSrc;
+    ID_EX.MemRead = MemRead;
+    ID_EX.MemWrite = MemWrite;
+    ID_EX.MemtoReg = MemtoReg;
+    ID_EX.ALUOp = ALUOp;
+
+    forwarding(); // 포워딩 처리
+
+    return 0;
+}
+
+void execute() {
+    if (!ID_EX.valid) return;
+
+    EX_MEM.pc = ID_EX.pc;
+    EX_MEM.instruction = ID_EX.instruction;
+    EX_MEM.valid = 1;
+
+    EX_MEM.MemRead = ID_EX.MemRead;
+    EX_MEM.MemWrite = ID_EX.MemWrite;
+    EX_MEM.MemtoReg = ID_EX.MemtoReg;
+    EX_MEM.RegWrite = ID_EX.RegWrite;
+
+    printf("\t[Execute]");
+    int readData1 = ID_EX.readData1;
+    int readData2 = ID_EX.readData2;
+
+    if (ALUSrc == 1) {
+        readData2 = ID_EX.immediate;
+    }
+
+    switch (ID_EX.ALUOp) {
+    case 0: // jr(8), jal(3) -> and 
+        printf(" Pass");
+        break;
+    case 2: // move(37) addu(33), addiu(9), sw(43), lw(35)  -> add
+        EX_MEM.ALUResult = readData1 + readData2;
+        printf(" ALU = %d", EX_MEM.ALUResult);
+        break;
+    case 3: // mult(24)
+    {
+        uint64_t product = (int64_t)readData1 * (int64_t)readData2;
+        LO = (uint32_t)(product & 0xFFFFFFFF);
+        HI = (uint32_t)(product >> 32);
+        printf(" mult result: LO=%lu, HI=%lu", LO, HI);
+    }
+    break;
+    case 4: // mflo(18)
+        EX_MEM.ALUResult = LO;
+        printf(" mflo result: %u", EX_MEM.ALUResult);
+        break;
+    case 6: // bnez(5), bne(5), beqz(4), b(4) -> sub
+        if (opcode == 5) {
+            EX_MEM.ALUResult = readData1 - readData2;
+            printf(" ALU = %d", EX_MEM.ALUResult);
+            if (EX_MEM.ALUResult == 0) { // 0이면 두 값이 같으므로 분기 x
+                PCSrc = 0;
+            }
+            break;
+        }
+        else {
+            EX_MEM.ALUResult = readData1 - readData2;
+            printf(" ALU = %d", EX_MEM.ALUResult);
+            if (EX_MEM.ALUResult != 0) { // 0이 아니면 두 값이 다르므로 분기 x
+                PCSrc = 0;
+            }
+            break;
+        }
+
+    case 7: // slti(35)
+        EX_MEM.ALUResult = (readData1 < readData2) ? 1 : 0; // 비교 결과에 따라 1 또는 0 설정
+        printf(" ALU = %d", EX_MEM.ALUResult);
+        break;
+    default:
+        printf(" Pass");
+        break;
+    }
+
+    EX_MEM.writeData = ID_EX.readData2;
+    if (ID_EX.RegDst == 1) {
+        EX_MEM.writeReg = ID_EX.rd;
+    }
+    else {
+        EX_MEM.writeReg = ID_EX.rt;
+    }
+
+    printf("\n");
+}
+
+// 메모리 접근 단계 처리 함수
+void memoryAccess() {
+    if (!EX_MEM.valid) return;
+
+    MEM_WB.pc = EX_MEM.pc;
+    MEM_WB.instruction = EX_MEM.instruction;
+    MEM_WB.valid = 1;
+
+    MEM_WB.ALUResult = EX_MEM.ALUResult;
+    MEM_WB.writeReg = EX_MEM.writeReg;
+    MEM_WB.RegWrite = EX_MEM.RegWrite;
+    MEM_WB.MemtoReg = EX_MEM.MemtoReg;
+
+    if (EX_MEM.ALUResult >= 0 && EX_MEM.ALUResult < sizeof(memory) / sizeof(memory[0])) {
+        if (EX_MEM.MemRead == 1) { // 메모리 읽기 활성화인 경우
+            MEM_WB.readData = memory[EX_MEM.ALUResult]; // 메모리에서 rt 레지스터로 데이터 로드
+            printf("\t[Memory Access] Load, Address: 0x%08x, Value: %d\n", EX_MEM.ALUResult, MEM_WB.readData);
+        }
+        else if (EX_MEM.MemWrite == 1) { // 메모리 쓰기 활성화인 경우
+            memory[EX_MEM.ALUResult] = EX_MEM.writeData; // rt 레지스터에서 메모리로 데이터 저장
+            printf("\t[Memory Access] Store, Address: 0x%08x, Value: %u\n", EX_MEM.ALUResult, memory[EX_MEM.ALUResult]);
+        }
+        else {
+            printf("\t[Memory Access] Pass\n"); // 메모리 작업 없음
+        }
+    }
+    else {
+        printf("\t[Memory Access] Invalid memory access\n");
+    }
+}
+
+// 레지스터에 결과 값을 되돌리는 쓰기 단계를 수행하는 함수
+void writeBack() {
+    if (!MEM_WB.valid) return;
+
+    printf("\t[Write Back]");
+
+    // RegWrite 신호가 활성화되어 있고, 결과가 메모리에서 오지 않을 때 실행
+    if (MEM_WB.RegWrite == 1 && MEM_WB.MemtoReg != 1) { // 레지스터 쓰기가 허용되고 메모리로부터의 값이 아닌 경우
+        if (opcode == 3) { // opcode가 3 (jal 명령어)일 때, RA 레지스터 (31)에 PC 값 저장
+            Register[31] = pc;
+            return; // 함수 종료
+        }
+        if (opcode == 0 && ALUOp == 3) { // mult일 때
+            return;
+        }
+        Register[MEM_WB.writeReg] = MEM_WB.ALUResult; // writeReg 레지스터에 ALU 결과 저장
+        printf(" Target: %s, Value: %d /", defineRegisterName(MEM_WB.writeReg), MEM_WB.ALUResult);
+    }
+
+    // MemtoReg 신호가 활성화된 경우, 메모리로부터 읽은 값을 레지스터에 쓰기
+    if (MEM_WB.MemtoReg == 1) { // 메모리에서 읽은 결과가 레지스터에 쓰여야 하는 경우
+        Register[MEM_WB.writeReg] = MEM_WB.readData; // 메모리에서 읽은 값을 writeReg 레지스터에 저장
+        printf(" target: %s, Value: %d /", defineRegisterName(MEM_WB.writeReg), MEM_WB.readData);
+    }
+}
+
+// 프로그램 카운터(PC)를 업데이트하여 가능한 점프를 처리하는 함수
+void possibleJump() {
+    if (PCSrc == 1) { // PCSrc 신호가 1이면 점프 실행
+        // opcode에 따라 다른 점프 동작 수행
+        switch (opcode) {
+        case 4: // beqz(4), b(4): 조건부 분기 (zero 조건) 또는 무조건적 분기
+            pc = pc + 4 * immediate; // 현재 위치에서 상대 주소만큼 점프
+            break;
+        case 5: // bnez(5), bne(5): 조건부 분기 (not zero 조건)
+            pc = pc + 4 * immediate; // 현재 위치에서 상대 주소만큼 점프
+            break;
+        case 0: // jr: 레지스터에 저장된 주소로 점프
+            pc = Register[31]; // ra 레지스터(31번)에 저장된 주소로 점프
+            break;
+        case 3: // jal: 점프하고 링크
+            pc = 4 * J_address; // 절대 주소 위치로 점프 (주소는 명령어에서 추출)
+            printf("pc를 ra로 update / ");
+            break;
+        default: // 그 외 경우는 점프 없음
+            break;
+        }
+        printf(" newPC: 0x%08x\n", pc); // 새로운 PC 값 출력
+    }
+    else {
+        printf(" newPC: 0x%08x\n", pc); // 변경 없는 경우 현재 PC 출력
+    }
+}
+
+// 분기 예측을 기반으로 PC를 업데이트하는 함수
+void branchPrediction() {
+    if (ENABLE_BRANCH_PREDICTION) {
+        if (opcode == 4 || opcode == 5) { // 분기 명령어
+            if (ALWAYS_TAKEN) {
+                PCSrc = 1;
+                possibleJump();
+            }
+        }
+    }
+}
+
+void init() {
+    Register[29] = 16777216; // sp = 0x1000000로 시작
+    Register[31] = 0xffffffff; // sp = 0xffffffff로 시작
+}
+
+// 파이프라인 레지스터 출력 함수
+void printPipelineRegisters() {
+    printf("\t[Pipeline Registers]\n");
+    printf("\t\tIF/ID: PC = 0x%08x, Instruction = 0x%08x, Valid = %d\n", IF_ID.pc, IF_ID.instruction, IF_ID.valid);
+    printf("\t\tID/EX: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUOp = %d, RegDst = %d, ALUSrc = %d, MemRead = %d, MemWrite = %d, MemtoReg = %d, RegWrite = %d\n",
+        ID_EX.pc, ID_EX.instruction, ID_EX.valid, ID_EX.ALUOp, ID_EX.RegDst, ID_EX.ALUSrc, ID_EX.MemRead, ID_EX.MemWrite, ID_EX.MemtoReg, ID_EX.RegWrite);
+    printf("\t\tEX/MEM: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUResult = %d, MemRead = %d, MemWrite = %d, MemtoReg = %d, RegWrite = %d\n",
+        EX_MEM.pc, EX_MEM.instruction, EX_MEM.valid, EX_MEM.ALUResult, EX_MEM.MemRead, EX_MEM.MemWrite, EX_MEM.MemtoReg, EX_MEM.RegWrite);
+    printf("\t\tMEM/WB: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUResult = %d, ReadData = %d, MemtoReg = %d, RegWrite = %d\n",
+        MEM_WB.pc, MEM_WB.instruction, MEM_WB.valid, MEM_WB.ALUResult, MEM_WB.readData, MEM_WB.MemtoReg, MEM_WB.RegWrite);
+}
+
+// 시뮬레이션을 실행하는 주 함수
+void run() {
+    init(); // 초기화 함수 호출로 레지스터 및 메모리 초기화
+    int loopCounter = 0; // 무한 루프 감지를 위한 카운터
+
+    while (1) { // 무한 루프로 명령어 실행
+        loopCounter++;
+        if (loopCounter > 1000000) {  // 1000,000 사이클이 넘어가면 루프 감지
+            printf("Infinite loop detected, stopping the simulation\n");
+            break;
+        }
+
+        printf("\n");
+        printf("\n");
+
+        // 1. Instruction Fetch: 명령어 인출 단계
+        int next_row = instructionFetch(); // 현재 PC의 명령어를 인출
+        if (next_row > data_row) break; // 데이터 행을 초과하면 루프 종료
+
+        // 버블 감지 및 처리
+        if (hazardDetection()) {
+            printf("\t[Hazard Detection] Bubble Inserted\n");
+            EX_MEM.valid = 0;
+            ID_EX.valid = 0;
+            continue;
+        }
+
+        // 2. Instruction Decode: 명령어 디코드 단계
+        if (instructionDecode()) { // 명령어 디코드 실행, NOP 등의 처리 확인
+            continue; // NOP이면 루프의 다음 반복으로 넘어감
+        }
+
+        // 3. Execute: 실행 단계
+        execute(); // ALU 연산 및 분기 결정 수행
+
+        // 4. Memory Access: 메모리 접근 단계
+        memoryAccess(); // 메모리 읽기 또는 쓰기 작업 수행
+
+        // 5. Write Back: 결과 쓰기 단계
+        writeBack(); // 연산 결과를 레지스터에 저장
+
+        // 6. Possible Jump: 점프 처리
+        possibleJump(); // 조건에 따라 PC 업데이트
+
+        // 7. Branch Prediction: 분기 예측 처리
+        branchPrediction(); // 분기 예측에 따라 PC 업데이트
+
+        // 프로그램 종료 조건 체크
+        if (pc == 0xffffffff) { break; } // PC가 특정 값(종료 조건)에 도달하면 루프 종료
+
+        printf("\n");
+        printf("\n");
+
+        // 파이프라인 레지스터 업데이트
+        MEM_WB.pc = EX_MEM.pc;
+        MEM_WB.instruction = EX_MEM.instruction;
+        MEM_WB.valid = EX_MEM.valid;
+        MEM_WB.ALUResult = EX_MEM.ALUResult;
+        MEM_WB.writeReg = EX_MEM.writeReg;
+        MEM_WB.RegWrite = EX_MEM.RegWrite;
+        MEM_WB.MemtoReg = EX_MEM.MemtoReg;
+        MEM_WB.readData = EX_MEM.writeData;
+
+        EX_MEM.pc = ID_EX.pc;
+        EX_MEM.instruction = ID_EX.instruction;
+        EX_MEM.valid = ID_EX.valid;
+        EX_MEM.MemRead = ID_EX.MemRead;
+        EX_MEM.MemWrite = ID_EX.MemWrite;
+        EX_MEM.MemtoReg = ID_EX.MemtoReg;
+        EX_MEM.RegWrite = ID_EX.RegWrite;
+        EX_MEM.ALUResult = ID_EX.ALUResult;
+        EX_MEM.writeData = ID_EX.readData2;
+        EX_MEM.writeReg = (ID_EX.RegDst == 1) ? ID_EX.rd : ID_EX.rt;
+
+        ID_EX.pc = IF_ID.pc;
+        ID_EX.instruction = IF_ID.instruction;
+        ID_EX.valid = IF_ID.valid;
+        ID_EX.rs = IF_ID.rs;
+        ID_EX.rt = IF_ID.rt;
+        ID_EX.rd = IF_ID.rd;
+        ID_EX.readData1 = Register[IF_ID.rs];
+        ID_EX.readData2 = Register[IF_ID.rt];
+        ID_EX.immediate = IF_ID.immediate;
+        ID_EX.RegDst = RegDst;
+        ID_EX.RegWrite = RegWrite;
+        ID_EX.ALUSrc = ALUSrc;
+        ID_EX.PCSrc = PCSrc;
+        ID_EX.MemRead = MemRead;
+        ID_EX.MemWrite = MemWrite;
+        ID_EX.MemtoReg = MemtoReg;
+        ID_EX.ALUOp = ALUOp;
+
+        IF_ID.valid = 0; // IF_ID를 초기화하여 다음 명령어를 받도록 설정
+
+        // 파이프라인 레지스터 상태 출력
+        printPipelineRegisters();
+    }
+}
+
+// 최종 답 출력 함수
+void answer() {
+    printf("32190192> Final Result\n");
+    printf("\tCycles: %d, R-type instructions: %d, I-type instructions: %d, J-type instructions: %d\n", cycle, R_type_cnt, I_type_cnt, J_type_cnt);
+    printf("\tReturn value (v0) : %d\n", Register[2]);
+}
+
+// 메인 함수: 프로그램의 진입점
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <filename>\n", argv[0]);
+        return -1;
+    }
+
+    FILE* fp = fopen(argv[1], "rb");
+    if (fp == NULL) {
+        perror("Error opening file");
+        exit(0);
+    }
+
+    parseData(fp);
+    run();
+    answer();
+    fclose(fp);
+    return 0;
+}
