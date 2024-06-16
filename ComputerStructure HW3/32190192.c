@@ -5,7 +5,6 @@
 
 #define ENABLE_FORWARD 1
 #define ENABLE_BRANCH_PREDICTION 1
-#define ALWAYS_TAKEN 1
 
 int cycle = 0; // 프로그램 실행 중 사이클 수를 추적
 int data_row; // MIPS 명령어 데이터 배열의 행 수
@@ -381,7 +380,7 @@ int instructionDecode() {
     ID_EX.MemWrite = MemWrite;
     ID_EX.MemtoReg = MemtoReg;
     ID_EX.ALUOp = ALUOp;
-
+    printf("\t\tIF/ID: PC = 0x%08x, Instruction = 0x%08x, Valid = %d\n", IF_ID.pc, IF_ID.instruction, IF_ID.valid);
     forwarding(); // 포워딩 처리
 
     return 0;
@@ -461,8 +460,8 @@ void execute() {
     else {
         EX_MEM.writeReg = ID_EX.rt;
     }
-
-    printf("\n");
+    printf("\n\t\tID/EX: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUOp = %d, RegDst = %d, ALUSrc = %d, MemRead = %d, MemWrite = %d, MemtoReg = %d, RegWrite = %d\n",
+        ID_EX.pc, ID_EX.instruction, ID_EX.valid, ID_EX.ALUOp, ID_EX.RegDst, ID_EX.ALUSrc, ID_EX.MemRead, ID_EX.MemWrite, ID_EX.MemtoReg, ID_EX.RegWrite);
 }
 
 // 메모리 접근 단계 처리 함수
@@ -494,6 +493,9 @@ void memoryAccess() {
     else {
         printf("\t[Memory Access] Invalid memory access\n");
     }
+    printf("\t\tEX/MEM: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUResult = %d, MemRead = %d, MemWrite = %d, MemtoReg = %d, RegWrite = %d\n",
+        EX_MEM.pc, EX_MEM.instruction, EX_MEM.valid, EX_MEM.ALUResult, EX_MEM.MemRead, EX_MEM.MemWrite, EX_MEM.MemtoReg, EX_MEM.RegWrite);
+
 }
 
 // 레지스터에 결과 값을 되돌리는 쓰기 단계를 수행하는 함수
@@ -520,6 +522,8 @@ void writeBack() {
         Register[MEM_WB.writeReg] = MEM_WB.readData; // 메모리에서 읽은 값을 writeReg 레지스터에 저장
         printf(" target: %s, Value: %d /", defineRegisterName(MEM_WB.writeReg), MEM_WB.readData);
     }
+    printf("\n\t\tMEM/WB: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUResult = %d, ReadData = %d, MemtoReg = %d, RegWrite = %d\n",
+        MEM_WB.pc, MEM_WB.instruction, MEM_WB.valid, MEM_WB.ALUResult, MEM_WB.readData, MEM_WB.MemtoReg, MEM_WB.RegWrite);
 }
 
 // 프로그램 카운터(PC)를 업데이트하여 가능한 점프를 처리하는 함수
@@ -554,10 +558,8 @@ void possibleJump() {
 void branchPrediction() {
     if (ENABLE_BRANCH_PREDICTION) {
         if (opcode == 4 || opcode == 5) { // 분기 명령어
-            if (ALWAYS_TAKEN) {
-                PCSrc = 1;
-                possibleJump();
-            }
+            PCSrc = 1;
+            possibleJump();
         }
     }
 }
@@ -565,18 +567,6 @@ void branchPrediction() {
 void init() {
     Register[29] = 16777216; // sp = 0x1000000로 시작
     Register[31] = 0xffffffff; // sp = 0xffffffff로 시작
-}
-
-// 파이프라인 레지스터 출력 함수
-void printPipelineRegisters() {
-    printf("\t[Pipeline Registers]\n");
-    printf("\t\tIF/ID: PC = 0x%08x, Instruction = 0x%08x, Valid = %d\n", IF_ID.pc, IF_ID.instruction, IF_ID.valid);
-    printf("\t\tID/EX: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUOp = %d, RegDst = %d, ALUSrc = %d, MemRead = %d, MemWrite = %d, MemtoReg = %d, RegWrite = %d\n",
-        ID_EX.pc, ID_EX.instruction, ID_EX.valid, ID_EX.ALUOp, ID_EX.RegDst, ID_EX.ALUSrc, ID_EX.MemRead, ID_EX.MemWrite, ID_EX.MemtoReg, ID_EX.RegWrite);
-    printf("\t\tEX/MEM: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUResult = %d, MemRead = %d, MemWrite = %d, MemtoReg = %d, RegWrite = %d\n",
-        EX_MEM.pc, EX_MEM.instruction, EX_MEM.valid, EX_MEM.ALUResult, EX_MEM.MemRead, EX_MEM.MemWrite, EX_MEM.MemtoReg, EX_MEM.RegWrite);
-    printf("\t\tMEM/WB: PC = 0x%08x, Instruction = 0x%08x, Valid = %d, ALUResult = %d, ReadData = %d, MemtoReg = %d, RegWrite = %d\n",
-        MEM_WB.pc, MEM_WB.instruction, MEM_WB.valid, MEM_WB.ALUResult, MEM_WB.readData, MEM_WB.MemtoReg, MEM_WB.RegWrite);
 }
 
 // 시뮬레이션을 실행하는 주 함수
@@ -672,9 +662,6 @@ void run() {
         ID_EX.ALUOp = ALUOp;
 
         IF_ID.valid = 0; // IF_ID를 초기화하여 다음 명령어를 받도록 설정
-
-        // 파이프라인 레지스터 상태 출력
-        printPipelineRegisters();
     }
 }
 
